@@ -112,7 +112,7 @@
 \begin{flushright}
   \begin{tabular}{ll}
   Document \#:&D1030R6\\
-  Date:       &\date{2023-06-15}\\
+  Date:       &\date{2023-06-16}\\
   Project:    &Programming Language C++\\
               &Library Evolution Working Group\\
   Reply-to:   &\author{Niall Douglas}\\
@@ -126,7 +126,11 @@ There are lengthy, `persuasive', arguments about design rationale in R3 (\url{ht
 
 If you wish to use an implementation right now, a highly-conforming reference implementation of the proposed path view can be found at \url{https://github.com/ned14/llfio/blob/master/include/llfio/v2.0/path\_view.hpp}. It has been found to work well on recent editions of GCC, clang and Microsoft Visual Studio, on x86, x64, ARM and AArch64. It has been in production use for several years now.
 
-My apologies for the two years which have elapsed since R4. `Real life' has intervened on my standards paper writing, and it is only due to my current client MayStreet London Stock Exchange Group allowing me a few work hours to work on standards papers that you see this R5 now and not yet more months from now. I hope that normal service will resume in 2023. I will not be at the upcoming Kona meeting, but I currently expect to be at the New York meeting in early 2023.
+Draft R6 of this paper was written in the bar whilst at the Varna WG21 meeting
+for presentation the following day.
+
+My two cocreators were Robert Leahy and Elias Kosunen, without whom this
+R6 would not have happened.
 
 \tableofcontents
 
@@ -167,7 +171,7 @@ My apologies for the two years which have elapsed since R4. `Real life' has inte
     \item A number of convenience renderers of path views to a destination format are provided:
     \begin{itemize}
         \item \code{filesystem::path}'s constructors can accept all backing data encodings except unencoded raw bytes\footnote{It would be preferable if paths could also represent unencoded raw bytes, but they would need a completely different design, and it could not be binary compatible with existing path implementations.}, and we provide convenience path view accepting constructor overloads which \code{visit()} the backing data and construct a path from that. These additional constructors on \code{path} are \code{explicit} to prevent hidden performance impact surprises.
-        \item \code{path_view.render()} will render a path view to a destination encoding and zero termination using an internal buffer to avoid dynamic memory allocation. See detail below.
+        \item \code{path_view.render_null_terminated()} and  \code{path_view.render_unterminated()} will render a path view to a destination encoding and null termination using an internal buffer to avoid dynamic memory allocation. See detail below.
     \end{itemize}
     \item \code{path_view} inherits publicly from \code{path_view_component}, and contains no additional member data. \code{path_view} can be implicitly constructed from \code{path_view_component}. Thus both types are implicitly convertible from and into one another. Note however that the formatting setting is propagated unchanged during conversion, which whilst not ideal, is considered to be the least worst of the choices available.
     \item Finally, two extra free function overloads are added for \code{path} which fix performance issues and make path more consistent with the rest of the standard library.
@@ -176,7 +180,7 @@ My apologies for the two years which have elapsed since R4. `Real life' has inte
 \subsection{\code{path_view::rendered_path}}
 
 \begin{itemize}
-    \item \code{path_view.render()} returning a \code{path_view::rendered_path} is expected to be the most commonly used mechanism in newly written code for rendering a path view ready for consumption by a platform syscall, or C function accepting a zero terminated codepoint array. If the user supplies backing data in a compatible encoding to the destination encoding, reencoding can be avoided. If the user supplies backing data which is zero terminated, or the destination does not require zero termination according to the parameters supplied to \code{render()}, memory copying can be avoided. For the vast majority of C++ code on POSIX platforms when targeting the filesystem, reencoding is always avoided and memory copying is usually avoided due to C++ source code string literals having a compatible encoding with filesystem paths.
+    \item \code{render_null_terminated()} and  \code{render_unterminated()} returning a \code{path_view::rendered_path} is expected to be the most commonly used mechanism in newly written code for rendering a path view ready for consumption by a platform syscall, or C function accepting a zero terminated codepoint array. If the user supplies backing data in a compatible encoding to the destination encoding, reencoding can be avoided. If the user supplies backing data which is zero terminated, or the destination does not require zero termination according to the parameters supplied to \code{render_*()}, memory copying can be avoided. For the vast majority of C++ code on POSIX platforms when targeting the filesystem, reencoding is always avoided and memory copying is usually avoided due to C++ source code string literals having a compatible encoding with filesystem paths.
     \item For the default configuration of \code{rendered_path}, dynamic memory allocation is usually avoided through the use of a reasonably large inline buffer. This makes \code{rendered_path} markedly larger than most classes typically standardised by the committee (expected to be between 1Kb and 2Kb depending on platform, but actual size is chosen by implementers). The intent is that \code{rendered_path} will be instantiated on the stack immediately preceding a syscall to render the path view into an appropriate form for that syscall. Upon the syscall's return, the \code{rendered_path} is unwound in the usual way. Therefore the large size is not the problem it might otherwise be.
     \item \code{rendered_path} is intended to be storable within STL containers as that can be useful sometimes, and provides assignment so a single stack allocated \code{rendered_path} instance can be reused for multiple path view inputs during a function. Via template parameters, \code{rendered_path} can be forced to be small for any particular use case, and thus exclusively use dynamic memory allocation. Similarly, via template parameters one can force \code{rendered_path} to be as large as the maximum possible path (e.g. \code{PATH_MAX}) and thus guarantee that no dynamic memory allocation can ever occur.
     \item For typical end users, \code{rendered_path} is expected to almost always be used with its default dynamic memory allocator, which uses an implementation defined allocator (this permits avoidance of an unnecessary extra dynamic memory allocation and memory copy on some platforms).
@@ -206,36 +210,38 @@ The WG21 tracker for this paper can be found at \url{https://github.com/cplusplu
     \begin{itemize}
     \item Remove all overloads taking a \code{std::locale} as per LEWG guidance.
     \item Fix incorrect ostream formatter as reported by Victor (thanks^^21). 
-    \item Removed render
-    \item Removed locale-based overloads
-    \item Use \emph{Returns} instead of \emph{Effects: As if} in overloads in [filebuf]
-    \item Fix uses of a free function \code{render_zero_terminated()} to be member functions
-    \item Clarify the lifetime semantics of \code{rendered_path}
-    \item LEWG requested a table of which \code{filesystem::path} implementations store
-    the \code{format} with which they were created:
+    \item Removed \code{render()} as per LEWG request.
+    \item Removed locale-based overloads as per LEWG request.
+    \item Use \emph{Returns} instead of \emph{Effects: As if} in overloads in [filebuf].
+    \item Fix incorrect mentions of a free function \code{render_zero_terminated()} to be member functions, which was a mistake.
+    \item Clarify the lifetime semantics of \code{rendered_path} as per LEWG request.
+    \item LEWG requested a table of which \code{filesystem::path} implementations store the \code{format} with which they were created:
     \begin{itemize}
       \item libstdc++: Ignores the format supplied in the constructor completely
-      (throws the values away and does not store it).\\
+      (throws the values away and does not store it).
       \item MSVC: Ignores the format supplied in the constructor completely
-      (throws the values away and does not store it).\\
+      (throws the values away and does not store it).
       \item libc++: Ignores the format supplied in the constructor completely
-      (throws the values away and does not store it).\\
+      (throws the values away and does not store it).
+      \item Boost.Filesystem: On POSIX ignores the format value; On Windows, if \code{native_format} requested, does not perform conversion of string before storage; if \code{generic_format} requested, all backslashes are converted to forward slashes in the string before storage.
     \end{itemize}
-    The chosen solution is that \code{filesystem::path::format()} always
-    returns \code{auto_format}, as that's what all three major implementations
-    do by ignoring the supplied \code{format} construction parameter.
+    The chosen solution is that if an implementation ignores the format value during construction, \code{filesystem::path::format()} always
+    returns \code{auto_format} as that is effectively the hard coded formatting choice.
     \item Use \emph{Returns} instead of \emph{Effects: As if} in overloads in [filebuf]
     \item Fix uses of a free function \code{render_zero_terminated()} to be member functions
     \item Clarify the lifetime semantics of \code{rendered_path}
-    \item Removed named type requirements and respecified \code{path_view}-accepting overloads in terms of path-view-like (based on techniques used in P1928R4)
+    \item Removed named type requirements and respecified \code{path_view}-accepting overloads in terms of \code{path-view-like} (based on techniques used in P1928R4)
     \item Removed all notes for LEWG which weren't notes for the final text as per LEWG request.
-    \item Updated feature test macro to \code{YYYYMML}
-    \item Removed erroneous parameter from \code{render_null_terminated} and \code{render_unterminated}
-    \item Added normative wording for \code{render_null_terminated} and \code{render_unterminated}
+    \item Updated feature test macro to \code{YYYYMML}.
+    \item Removed erroneous parameter from \code{render_null_terminated} and \code{render_unterminated}.
+    \item Added normative wording for \code{render_null_terminated} and \code{render_unterminated}.
     \item Replace `implementation defined' with `see later normative wording' where appropriate,
     as per LEWG request.
     \item Changed references to "zero terminated" to reference "null terminated"
     \item Changed references to "not zero termination" to reference "unterminated"
+    \item Apply \code{noexcept} in [fs.filesystem.syn] consistently with existing overloads already taking a \code{const path&}
+    \item Specify semantics of \code{path(path_view)} and \code{path_view::operator<<}
+    \item Add \code{std::hash} for \code{path_view_fragment}
     \end{itemize}
 
     \item R4 => R5:
@@ -503,11 +509,16 @@ ios_base::openmode mode = ios_base::in);}}
 
 \tsref{fs.filesystem.syn}{29.12.4}
 
-\tsreplace{}{namespace std::filesystem \{ }{}
+\tsreplace{}{\code{namespace std::filesystem \{}}{}
 
 \tsreplace{}{  \code{class path;}}{}\\
 \tsreplace{}{}{+ \code{class path_view_component;}}\\
 \tsreplace{}{}{+ \code{class path_view;}}
+
+\tsreplace{}{}{+ \code{struct path-view-like \{ // exposition-only}}\\
+\tsreplace{}{}{+ \code{  path_view view;}}\\
+\tsreplace{}{}{+ \code{\}; }}\\
+\tsreplace{}{}{+ \code{path \emph{path-from-binary}(span<const byte> data); // exposition-only}}\\
 
 \tsreplace{}{  \code{void swap(path& lhs, path& rhs);}}{}\\
 \tsreplace{}{  \code{size_t hash_value(path p);}}{}\\
@@ -550,9 +561,9 @@ ios_base::openmode mode = ios_base::in);}}
 \tsreplace{}{}{+ \code{bool copy_file(path-view-like from, path-view-like to, copy_options options, error_code& ec);}}
 
 \tsreplace{}{  \code{void copy_symlink(const path& existing\_symlink, const path& new\_symlink);}}{}\\
-\tsreplace{}{  \code{void copy_symlink(const path& existing\_symlink, const path& new\_symlink, error_code& ec);}}{}\\
+\tsreplace{}{  \code{void copy_symlink(const path& existing\_symlink, const path& new\_symlink, error_code& ec) noexcept;}}{}\\
 \tsreplace{}{}{+ \code{void copy_symlink(path-view-like existing\_symlink, path-view-like new\_symlink);}}\\
-\tsreplace{}{}{+ \code{void copy_symlink(path-view-like existing\_symlink, path-view-like new\_symlink, error_code& ec);}}
+\tsreplace{}{}{+ \code{void copy_symlink(path-view-like existing\_symlink, path-view-like new\_symlink, error_code& ec) noexcept;}}
 
 \tsreplace{}{  \code{bool create_directories(const path& p);}}{}\\
 \tsreplace{}{  \code{bool create_directories(const path& p, error_code& ec);}}{}\\
@@ -560,120 +571,132 @@ ios_base::openmode mode = ios_base::in);}}
 \tsreplace{}{}{+ \code{bool create_directories(path-view-like p, error_code& ec);}}
 
 \tsreplace{}{  \code{bool create_directory(const path& p);}}{}\\
-\tsreplace{}{  \code{bool create_directory(const path& p, error_code& ec);}}{}\\
+\tsreplace{}{  \code{bool create_directory(const path& p, error_code& ec) noexcept;}}{}\\
 \tsreplace{}{}{+ \code{bool create_directory(path-view-like p);}}\\
-\tsreplace{}{}{+ \code{bool create_directory(path-view-like p, error_code& ec);}}
+\tsreplace{}{}{+ \code{bool create_directory(path-view-like p, error_code& ec) noexcept;}}
 
 \tsreplace{}{  \code{bool create_directory(const path& p, const path& attributes);}}{}\\
-\tsreplace{}{  \code{bool create_directory(const path& p, const path& attributes, error_code& ec);}}{}\\
+\tsreplace{}{  \code{bool create_directory(const path& p, const path& attributes, error_code& ec) noexcept;}}{}\\
 \tsreplace{}{}{+ \code{bool create_directory(path-view-like p, path-view-like attributes);}}\\
-\tsreplace{}{}{+ \code{bool create_directory(path-view-like p, path-view-like attributes, error_code& ec);}}
+\tsreplace{}{}{+ \code{bool create_directory(path-view-like p, path-view-like attributes, error_code& ec) noexcept;}}
 
 \tsreplace{}{  \code{void create_directory_symlink(const path& to, const path& new_symlink);}}{}\\
-\tsreplace{}{  \code{void create_directory_symlink(const path& to, const path& new_symlink, error_code& ec);}}{}\\
+\tsreplace{}{  \code{void create_directory_symlink(const path& to, const path& new_symlink, error_code& ec) noexcept;}}{}\\
 \tsreplace{}{}{+ \code{void create_directory_symlink(path-view-like to, path-view-like new_symlink);}}\\
-\tsreplace{}{}{+ \code{void create_directory_symlink(path-view-like to, path-view-like new_symlink, error_code& ec);}}
+\tsreplace{}{}{+ \code{void create_directory_symlink(path-view-like to, path-view-like new_symlink, error_code& ec) noexcept;}}
 
 \tsreplace{}{  \code{void create_hard_link(const path& to, const path& new_hard_link);}}{}\\
-\tsreplace{}{  \code{void create_hard_link(const path& to, const path& new_hard_link, error_code& ec);}}{}\\
+\tsreplace{}{  \code{void create_hard_link(const path& to, const path& new_hard_link, error_code& ec) noexcept;}}{}\\
 \tsreplace{}{}{+ \code{void create_hard_link(path-view-like to, path-view-like new_hard_link);}}\\
-\tsreplace{}{}{+ \code{void create_hard_link(path-view-like to, path-view-like new_hard_link, error_code& ec);}}
+\tsreplace{}{}{+ \code{void create_hard_link(path-view-like to, path-view-like new_hard_link, error_code& ec) noexcept;}}
 
 \tsreplace{}{  \code{void create_symlink(const path& to, const path& new_symlink);}}{}\\
-\tsreplace{}{  \code{void create_symlink(const path& to, const path& new_symlink, error_code& ec);}}{}\\
+\tsreplace{}{  \code{void create_symlink(const path& to, const path& new_symlink, error_code& ec) noexcept;}}{}\\
 \tsreplace{}{}{+ \code{void create_symlink(path-view-like to, path-view-like new_symlink);}}\\
-\tsreplace{}{}{+ \code{void create_symlink(path-view-like to, path-view-like new_symlink, error_code& ec);}}
+\tsreplace{}{}{+ \code{void create_symlink(path-view-like to, path-view-like new_symlink, error_code& ec) noexcept;}}
 
+\tsreplace{}{  \code{path current_path();}}{}\\
+\tsreplace{}{  \code{path current_path(error_code& ec);}}{}\\
 \tsreplace{}{  \code{void current_path(const path& p);}}{}\\
 \tsreplace{}{  \code{void current_path(const path& p, error_code& ec);}}{}\\
 \tsreplace{}{}{+ \code{void current_path(path-view-like p);}}\\
 \tsreplace{}{}{+ \code{void current_path(path-view-like p, error_code& ec);}}
 
 \tsreplace{}{  \code{bool equivalent(const path& p1, const path& p2);}}{}\\
-\tsreplace{}{  \code{bool equivalent(const path& p1, const path& p2, error_code& ec);}}{}\\
+\tsreplace{}{  \code{bool equivalent(const path& p1, const path& p2, error_code& ec) noexcept;}}{}\\
 \tsreplace{}{}{+ \code{bool equivalent(path-view-like p1, path-view-like p2);}}\\
-\tsreplace{}{}{+ \code{bool equivalent(path-view-like p1, path-view-like p2, error_code& ec);}}
+\tsreplace{}{}{+ \code{bool equivalent(path-view-like p1, path-view-like p2, error_code& ec) noexcept;}}
 
-\tsreplace{}{  \code{bool exists(path-view-like p);}}{}\\
-\tsreplace{}{  \code{bool exists(path-view-like p, error_code& ec);}}{}\\
+\tsreplace{}{  \code{bool exists(file_status s) noexcept;}}{}\\
+\tsreplace{}{  \code{bool exists(const path& p);}}{}\\
+\tsreplace{}{  \code{bool exists(const path& p, error_code& ec) noexcept;}}{}\\
 \tsreplace{}{}{+ \code{bool exists(path-view-like p);}}\\
-\tsreplace{}{}{+ \code{bool exists(path-view-like p, error_code& ec);}}
+\tsreplace{}{}{+ \code{bool exists(path-view-like p, error_code& ec) noexcept;}}
 
 \tsreplace{}{  \code{uintmax_t file_size(const path& p);}}{}\\
-\tsreplace{}{  \code{uintmax_t file_size(const path& p, error_code& ec);}}{}\\
+\tsreplace{}{  \code{uintmax_t file_size(const path& p, error_code& ec) noexcept;}}{}\\
 \tsreplace{}{}{+ \code{uintmax_t file_size(path-view-like p);}}\\
-\tsreplace{}{}{+ \code{uintmax_t file_size(path-view-like p, error_code& ec);}}
+\tsreplace{}{}{+ \code{uintmax_t file_size(path-view-like p, error_code& ec) noexcept;}}
 
 \tsreplace{}{  \code{uintmax_t hard_link_count(const path& p);}}{}\\
-\tsreplace{}{  \code{uintmax_t hard_link_count(const path& p, error_code& ec);}}{}\\
+\tsreplace{}{  \code{uintmax_t hard_link_count(const path& p, error_code& ec) noexcept;}}{}\\
 \tsreplace{}{}{+ \code{uintmax_t hard_link_count(path-view-like p);}}\\
-\tsreplace{}{}{+ \code{uintmax_t hard_link_count(path-view-like p, error_code& ec);}}
+\tsreplace{}{}{+ \code{uintmax_t hard_link_count(path-view-like p, error_code& ec) noexcept;}}
 
+\tsreplace{}{  \code{bool is_block_file(file_status s) noexcept;}}{}\\
 \tsreplace{}{  \code{bool is_block_file(const path& p);}}{}\\
-\tsreplace{}{  \code{bool is_block_file(const path& p, error_code& ec);}}{}\\
+\tsreplace{}{  \code{bool is_block_file(const path& p, error_code& ec) noexcept;}}{}\\
 \tsreplace{}{}{+ \code{bool is_block_file(path-view-like p);}}\\
-\tsreplace{}{}{+ \code{bool is_block_file(path-view-like p, error_code& ec);}}
+\tsreplace{}{}{+ \code{bool is_block_file(path-view-like p, error_code& ec) noexcept;}}
 
+\tsreplace{}{  \code{bool is_character_file(file_status s) noexcept;}}{}\\
 \tsreplace{}{  \code{bool is_character_file(const path& p);}}{}\\
-\tsreplace{}{  \code{bool is_character_file(const path& p, error_code& ec);}}{}\\
+\tsreplace{}{  \code{bool is_character_file(const path& p, error_code& ec) noexcept;}}{}\\
 \tsreplace{}{}{+ \code{bool is_character_file(path-view-like p);}}\\
-\tsreplace{}{}{+ \code{bool is_character_file(path-view-like p, error_code& ec);}}
+\tsreplace{}{}{+ \code{bool is_character_file(path-view-like p, error_code& ec) noexcept;}}
 
+\tsreplace{}{  \code{bool is_directory(file_status p) noexcept;}}{}\\
 \tsreplace{}{  \code{bool is_directory(const path& p);}}{}\\
-\tsreplace{}{  \code{bool is_directory(const path& p, error_code& ec);}}{}\\
+\tsreplace{}{  \code{bool is_directory(const path& p, error_code& ec) noexcept;}}{}\\
 \tsreplace{}{}{+ \code{bool is_directory(path-view-like p);}}\\
-\tsreplace{}{}{+ \code{bool is_directory(path-view-like p, error_code& ec);}}
+\tsreplace{}{}{+ \code{bool is_directory(path-view-like p, error_code& ec) noexcept;}}
 
-\tsreplace{}{ \code{bool is_empty(const path& p);}}{}\\
-\tsreplace{}{ \code{bool is_empty(const path& p, error_code& ec);}}{}\\
+\tsreplace{}{  \code{bool is_empty(file_status p) noexcept;}}{}\\
+\tsreplace{}{  \code{bool is_empty(const path& p);}}{}\\
+\tsreplace{}{  \code{bool is_empty(const path& p, error_code& ec) noexcept;}}{}\\
 \tsreplace{}{}{+ \code{bool is_empty(path-view-like p);}}\\
-\tsreplace{}{}{+ \code{bool is_empty(path-view-like p, error_code& ec);}}
+\tsreplace{}{}{+ \code{bool is_empty(path-view-like p, error_code& ec) noexcept;}}
 
+\tsreplace{}{  \code{bool is_fifo(file_status p) noexcept;}}{}\\
 \tsreplace{}{  \code{bool is_fifo(const path& p);}}{}\\
-\tsreplace{}{  \code{bool is_fifo(const path& p, error_code& ec);}}{}\\
+\tsreplace{}{  \code{bool is_fifo(const path& p, error_code& ec) noexcept;}}{}\\
 \tsreplace{}{}{+ \code{bool is_fifo(path-view-like p);}}\\
-\tsreplace{}{}{+ \code{bool is_fifo(path-view-like p, error_code& ec);}}
+\tsreplace{}{}{+ \code{bool is_fifo(path-view-like p, error_code& ec) noexcept;}}
 
+\tsreplace{}{  \code{bool is_other(file_status p) noexcept;}}{}\\
 \tsreplace{}{  \code{bool is_other(const path& p);}}{}\\
-\tsreplace{}{  \code{bool is_other(const path& p, error_code& ec);}}{}\\
+\tsreplace{}{  \code{bool is_other(const path& p, error_code& ec) noexcept;}}{}\\
 \tsreplace{}{}{+ \code{bool is_other(path-view-like p);}}\\
-\tsreplace{}{}{+ \code{bool is_other(path-view-like p, error_code& ec);}}
+\tsreplace{}{}{+ \code{bool is_other(path-view-like p, error_code& ec) noexcept;}}
 
+\tsreplace{}{  \code{bool is_regular_file(file_status p) noexcept;}}{}\\
 \tsreplace{}{  \code{bool is_regular_file(const path& p);}}{}\\
-\tsreplace{}{  \code{bool is_regular_file(const path& p, error_code& ec);}}{}\\
+\tsreplace{}{  \code{bool is_regular_file(const path& p, error_code& ec) noexcept;}}{}\\
 \tsreplace{}{}{+ \code{bool is_regular_file(path-view-like p);}}\\
-\tsreplace{}{}{+ \code{bool is_regular_file(path-view-like p, error_code& ec);}}
+\tsreplace{}{}{+ \code{bool is_regular_file(path-view-like p, error_code& ec) noexcept;}}
 
+\tsreplace{}{  \code{bool is_socket(file_status p) noexcept;}}{}\\
 \tsreplace{}{  \code{bool is_socket(const path& p);}}{}\\
-\tsreplace{}{  \code{bool is_socket(const path& p, error_code& ec);}}{}\\
+\tsreplace{}{  \code{bool is_socket(const path& p, error_code& ec) noexcept;}}{}\\
 \tsreplace{}{}{+ \code{bool is_socket(path-view-like p);}}\\
-\tsreplace{}{}{+ \code{bool is_socket(path-view-like p, error_code& ec);}}
+\tsreplace{}{}{+ \code{bool is_socket(path-view-like p, error_code& ec) noexcept;}}
 
+\tsreplace{}{  \code{bool is_symlink(file_status p) noexcept;}}{}\\
 \tsreplace{}{  \code{bool is_symlink(const path& p);}}{}\\
-\tsreplace{}{  \code{bool is_symlink(const path& p, error_code& ec);}}{}\\
+\tsreplace{}{  \code{bool is_symlink(const path& p, error_code& ec) noexcept;}}{}\\
 \tsreplace{}{}{+ \code{bool is_symlink(path-view-like p);}}\\
-\tsreplace{}{}{+ \code{bool is_symlink(path-view-like p, error_code& ec);}}
+\tsreplace{}{}{+ \code{bool is_symlink(path-view-like p, error_code& ec) noexcept;}}
 
 \tsreplace{}{  \code{file_time_type last_write_time(const path& p);}}{}\\
-\tsreplace{}{  \code{file_time_type last_write_time(const path& p, error_code& ec);}}{}\\
+\tsreplace{}{  \code{file_time_type last_write_time(const path& p, error_code& ec) noexcept;}}{}\\
 \tsreplace{}{}{+ \code{file_time_type last_write_time(path-view-like p);}}\\
-\tsreplace{}{}{+ \code{file_time_type last_write_time(path-view-like p, error_code& ec);}}
+\tsreplace{}{}{+ \code{file_time_type last_write_time(path-view-like p, error_code& ec) noexcept;}}
 
 \tsreplace{}{  \code{void last_write_time(const path& p, file_time_type new_time);}}{}\\
-\tsreplace{}{  \code{void last_write_time(const path& p, file_time_type new_time, error_code& ec);}}{}\\
+\tsreplace{}{  \code{void last_write_time(const path& p, file_time_type new_time, error_code& ec) noexcept;}}{}\\
 \tsreplace{}{}{+ \code{void last_write_time(path-view-like p, file_time_type new_time);}}\\
-\tsreplace{}{}{+ \code{void last_write_time(path-view-like p, file_time_type new_time, error_code& ec);}}
+\tsreplace{}{}{+ \code{void last_write_time(path-view-like p, file_time_type new_time, error_code& ec) noexcept;}}
 
 \tsreplace{}{  \code{void permissions(const path& p, perms prms, perm_options opts=perm_options::replace);}}{}\\
-\tsreplace{}{  \code{void permissions(const path& p, perms prms, error_code& ec);}}{}\\
-\tsreplace{}{  \code{void permissions(const path& p, perms prms, perm_options opts,  error_code& ec);}}{}\\
+\tsreplace{}{  \code{void permissions(const path& p, perms prms, error_code& ec) noexcept;}}{}\\
+\tsreplace{}{  \code{void permissions(const path& p, perms prms, perm_options opts, error_code& ec);}}{}\\
 \tsreplace{}{}{+ \code{void permissions(path-view-like p, perms prms, perm_options opts=perm_options::replace);}}\\
-\tsreplace{}{}{+ \code{void permissions(path-view-like p, perms prms, error_code& ec);}}\\
-\tsreplace{}{}{+ \code{void permissions(path-view-like p, perms prms, perm_options opts,  error_code& ec);}}
+\tsreplace{}{}{+ \code{void permissions(path-view-like p, perms prms, error_code& ec) noexcept;}}\\
+\tsreplace{}{}{+ \code{void permissions(path-view-like p, perms prms, perm_options opts, error_code& ec);}}
 
 \tsreplace{}{  \code{path proximate(const path& p, error_code& ec);}}{}\\
-\tsreplace{}{  \code{path proximate(const path& p, path-view-like base = current_path());}}{}\\
-\tsreplace{}{  \code{path proximate(const path& p, path-view-like base, error_code& ec);}}{}\\
+\tsreplace{}{  \code{path proximate(const path& p, const path& base = current_path());}}{}\\
+\tsreplace{}{  \code{path proximate(const path& p, const path& base, error_code& ec);}}{}\\
 \tsreplace{}{}{+ \code{path proximate(path-view-like p, error_code& ec);}}\\
 \tsreplace{}{}{+ \code{path proximate(path-view-like p, path-view-like base = current_path());}}\\
 \tsreplace{}{}{+ \code{path proximate(path-view-like p, path-view-like base, error_code& ec);}}
@@ -691,9 +714,9 @@ ios_base::openmode mode = ios_base::in);}}
 \tsreplace{}{}{+ \code{path relative(path-view-like p, path-view-like base, error_code& ec);}}
 
 \tsreplace{}{  \code{bool remove(const path& p);}}{}\\
-\tsreplace{}{  \code{bool remove(const path& p, error_code& ec);}}{}\\
+\tsreplace{}{  \code{bool remove(const path& p, error_code& ec) noexcept;}}{}\\
 \tsreplace{}{}{+ \code{bool remove(path-view-like p);}}\\
-\tsreplace{}{}{+ \code{bool remove(path-view-like p, error_code& ec);}}
+\tsreplace{}{}{+ \code{bool remove(path-view-like p, error_code& ec) noexcept;}}
 
 \tsreplace{}{  \code{uintmax_t remove_all(const path& p);}}{}\\
 \tsreplace{}{  \code{uintmax_t remove_all(const path& p, error_code& ec);}}{}\\
@@ -701,29 +724,34 @@ ios_base::openmode mode = ios_base::in);}}
 \tsreplace{}{}{+ \code{uintmax_t remove_all(path-view-like p, error_code& ec);}}
 
 \tsreplace{}{  \code{void rename(const path& from, const path& to);}}{}\\
-\tsreplace{}{  \code{void rename(const path& from, const path& to, error_code& ec);}}{}\\
+\tsreplace{}{  \code{void rename(const path& from, const path& to, error_code& ec) noexcept;}}{}\\
 \tsreplace{}{}{+ \code{void rename(path-view-like from, path-view-like to);}}\\
-\tsreplace{}{}{+ \code{void rename(path-view-like from, path-view-like to, error_code& ec);}}
+\tsreplace{}{}{+ \code{void rename(path-view-like from, path-view-like to, error_code& ec) noexcept;}}
 
 \tsreplace{}{  \code{void resize_file(const path& p, uintmax_t size);}}{}\\
-\tsreplace{}{  \code{void resize_file(const path& p, uintmax_t size, error_code& ec);}}{}\\
+\tsreplace{}{  \code{void resize_file(const path& p, uintmax_t size, error_code& ec) noexcept;}}{}\\
 \tsreplace{}{}{+ \code{void resize_file(path-view-like p, uintmax_t size);}}\\
-\tsreplace{}{}{+ \code{void resize_file(path-view-like p, uintmax_t size, error_code& ec);}}
+\tsreplace{}{}{+ \code{void resize_file(path-view-like p, uintmax_t size, error_code& ec) noexcept;}}
 
 \tsreplace{}{  \code{space_info space(const path& p);}}{}\\
-\tsreplace{}{  \code{space_info space(const path& p, error_code& ec);}}{}\\
+\tsreplace{}{  \code{space_info space(const path& p, error_code& ec) noexcept;}}{}\\
 \tsreplace{}{}{+ \code{space_info space(path-view-like p);}}\\
-\tsreplace{}{}{+ \code{space_info space(path-view-like p, error_code& ec);}}
+\tsreplace{}{}{+ \code{space_info space(path-view-like p, error_code& ec) noexcept;}}
 
 \tsreplace{}{  \code{file_status status(const path& p);}}{}\\
-\tsreplace{}{  \code{file_status status(const path& p, error_code& ec);}}{}\\
+\tsreplace{}{  \code{file_status status(const path& p, error_code& ec) noexcept;}}{}\\
 \tsreplace{}{}{+ \code{file_status status(path-view-like p);}}\\
-\tsreplace{}{}{+ \code{file_status status(path-view-like p, error_code& ec);}}
+\tsreplace{}{}{+ \code{file_status status(path-view-like p, error_code& ec) noexcept;}}
+
+\tsreplace{}{  \code{bool status_known(file_status s) noexcept;}}{}\\
 
 \tsreplace{}{  \code{file_status symlink_status(const path& p);}}{}\\
-\tsreplace{}{  \code{file_status symlink_status(const path& p, error_code& ec);}}{}\\
+\tsreplace{}{  \code{file_status symlink_status(const path& p, error_code& ec) noexcept;}}{}\\
 \tsreplace{}{}{+ \code{file_status symlink_status(path-view-like p);}}\\
-\tsreplace{}{}{+ \code{file_status symlink_status(path-view-like p, error_code& ec);}}
+\tsreplace{}{}{+ \code{file_status symlink_status(path-view-like p, error_code& ec) noexcept;}}
+
+\tsreplace{}{  \code{path temp_directory_path();}}{}\\
+\tsreplace{}{  \code{path temp_directory_path(error_code& ec);}}{}\\
 
 \tsreplace{}{  \code{path weakly_canonical(const path& p);}}{}\\
 \tsreplace{}{  \code{path weakly_canonical(const path& p, error_code& ec);}}{}\\
@@ -741,52 +769,224 @@ namespace std {
 
 \tsreplace{}{}{+ \code{template<> struct hash<filesystem::path_view_component>;}}
 
+\tsreplace{}{}{+ \code{template<> struct hash<filesystem::path_view>;}}
+
 \begin{lstlisting}[language=cpp]
 }
 \end{lstlisting}
 
-\tsrefp{fs.class.path}{29.12.6}{6}
+\color{darkgreen}
++ The exposition-only type \code{path-view-like} is implicitly constructible from any type \code{T} for which:
 
+\begin{itemize}
++ \item \code{std::is_convertible<T, path_view>} is \code{true}, and
++ \item \code{std::is_convertible<T, path>} is \code{false}
+\end{itemize}
+
++ and which has a single exposition-only member \code{\emph{view}} of type \code{path_view} which is initialized from the object of type \code{T}.
+
++ The exposition-only function \code{\emph{path-from-binary}} returns a \code{path} constructed from a \code{span<const byte>}.\\
++ The semantics of this conversion are implementation-defined.
+
++ \note{The semantics of a binary-to-path conversion are inherently unportable, and may not be possible on all platforms or filesystems.
+For example, on Windows, if \code{data.length()} is \code{16}, the returned path could contain the textual representation of a GUID.
+On POSIX, \code{data} could be interpreted as an NTBS.}
+
+\color{black}
+
+\emph{Wording note:} The definitions for the function declared in the synopsis above are not provided at this time.
+All of them delegate to the overload taking a \code{path}.
+
+\tsrefp{fs.class.path.general}{29.12.6}{6}
+
+\begin{lstlisting}[language=cpp]
+class path {
+public:
+  using value_type  = see below;
+  using string_type = basic_string<value_type>;
+  static constexpr value_type preferred_separator = see below;
+
+  // [fs.enum.path.format], enumeration format
+  enum format;
+
+  // [fs.path.construct], constructors and destructor
+  path() noexcept;
+  path(const path& p);
+  path(path&& p) noexcept;
+\end{lstlisting}
 \tsreplace{}{}{+ \code{explicit path(path-view-like p);}}
+\begin{lstlisting}[language=cpp]
+  path(string_type&& source, format fmt = auto_format);
+  template<class Source>
+    path(const Source& source, format fmt = auto_format);
+  template<class InputIterator>
+    path(InputIterator first, InputIterator last, format fmt = auto_format);
+  template<class Source>
+    path(const Source& source, const locale& loc, format fmt = auto_format);
+  template<class InputIterator>
+    path(InputIterator first, InputIterator last, const locale& loc, format fmt = auto_format);
+  ~path();
 
-\tsreplace{}{}{+ \code{path(path-view-like p, const locale& loc);}}
+  // [fs.path.assign], assignments
+  path& operator=(const path& p);
+  path& operator=(path&& p) noexcept;
+  path& operator=(string_type&& source);
+  path& assign(string_type&& source);
+  template<class Source>
+    path& operator=(const Source& source);
+  template<class Source>
+    path& assign(const Source& source);
+  template<class InputIterator>
+    path& assign(InputIterator first, InputIterator last);
 
-\tsreplace{}{}{+ \code{path& operator=(path-view-like p);}}
+  // [fs.path.append], appends
+  path& operator/=(const path& p);
+  template<class Source>
+    path& operator/=(const Source& source);
+  template<class Source>
+    path& append(const Source& source);
+  template<class InputIterator>
+    path& append(InputIterator first, InputIterator last);
 
-\tsreplace{}{}{+ \code{path& assign(path-view-like p);}}
+  // [fs.path.concat], concatenation
+  path& operator+=(const path& x);
+  path& operator+=(const string_type& x);
+  path& operator+=(basic_string_view<value_type> x);
+  path& operator+=(const value_type* x);
+  path& operator+=(value_type x);
+  template<class Source>
+    path& operator+=(const Source& x);
+  template<class EcharT>
+    path& operator+=(EcharT x);
+  template<class Source>
+    path& concat(const Source& x);
+  template<class InputIterator>
+    path& concat(InputIterator first, InputIterator last);
 
-\tsreplace{}{}{+ \code{path& operator/=(path-view-like p);}}
+  // [fs.path.modifiers], modifiers
+  void  clear() noexcept;
+  path& make_preferred();
+  path& remove_filename();
+  path& replace_filename(const path& replacement);
+\end{lstlisting}
+\tsreplace{}{}{+ \code{path& replace_filename(path-view-like p);}}
+\begin{lstlisting}[language=cpp]
+  path& replace_extension(const path& replacement = path());
+\end{lstlisting}
+\tsreplace{}{}{+ \code{path& replace_extension(path-view-like p);}}
+\begin{lstlisting}[language=cpp]
+  void  swap(path& rhs) noexcept;
 
-\tsreplace{}{}{+ \code{path& operator+=(path-view-like p);}}
+  // [fs.path.nonmember], non-member operators
+  friend bool operator==(const path& lhs, const path& rhs) noexcept;
+  friend strong_ordering operator<=>(const path& lhs, const path& rhs) noexcept;
+
+  friend path operator/(const path& lhs, const path& rhs);
+\end{lstlisting}
+\tsreplace{}{}{+ \code{friend path operator/ (path&& lhs, path&& rhs);}}\\
+\tsreplace{}{}{+ \code{friend path operator/ (const path& lhs, path-view-like rhs);}}\\
+\tsreplace{}{}{+ \code{friend path operator/ (path&& lhs, path-view-like rhs);}}\\
+\tsreplace{}{}{+ \code{friend path operator/ (path-view-like lhs, path-view-like rhs);}}
+\begin{lstlisting}[language=cpp]
+
+  // [fs.path.native.obs], native format observers
+\end{lstlisting}
+\tsreplace{- const string_type& native() const noexcept;}{}{+ \code{const string_type& native() const& noexcept;}}\\
+\tsreplace{}{}{+ \code{string_type&& native() && noexcept;}}\\
+\begin{lstlisting}[language=cpp]
+  const value_type*  c_str() const noexcept;
+  operator string_type() const;
+
+  template<class EcharT, class traits = char_traits<EcharT>,
+           class Allocator = allocator<EcharT>>
+    basic_string<EcharT, traits, Allocator>
+      string(const Allocator& a = Allocator()) const;
+  std::string    string() const;
+  std::wstring   wstring() const;
+  std::u8string  u8string() const;
+  std::u16string u16string() const;
+  std::u32string u32string() const;
+
+  // [fs.path.generic.obs], generic format observers
+  template<class EcharT, class traits = char_traits<EcharT>,
+           class Allocator = allocator<EcharT>>
+    basic_string<EcharT, traits, Allocator>
+      generic_string(const Allocator& a = Allocator()) const;
+  std::string    generic_string() const;
+  std::wstring   generic_wstring() const;
+  std::u8string  generic_u8string() const;
+  std::u16string generic_u16string() const;
+  std::u32string generic_u32string() const;
+
+  // [fs.path.compare], compare
+  int compare(const path& p) const noexcept;
+\end{lstlisting}
+\tsreplace{}{}{+ \code{int compare(path-view-like p) const;}}
+\begin{lstlisting}[language=cpp]
+  int compare(const string_type& s) const;
+  int compare(basic_string_view<value_type> s) const;
+  int compare(const value_type* s) const;
+
+  // [fs.path.decompose], decomposition
+  path root_name() const;
+  path root_directory() const;
+  path root_path() const;
+  path relative_path() const;
+  path parent_path() const;
+  path filename() const;
+  path stem() const;
+  path extension() const;
+\end{lstlisting}
 
 \tsreplace{}{}{+ \code{format formatting() const noexcept;}}
 
-\tsreplace{}{}{+ \note{If the \code{path} implementation does not store the formatting with which it was created (all of libstdc++, libc++ and MSVC's implementations currently ignore the parameter entirely), this function ought to return \code{auto_format}.}}
+\begin{lstlisting}[language=cpp]
+  // [fs.path.query], query
+  [[nodiscard]] bool empty() const noexcept;
+  bool has_root_name() const;
+  bool has_root_directory() const;
+  bool has_root_path() const;
+  bool has_relative_path() const;
+  bool has_parent_path() const;
+  bool has_filename() const;
+  bool has_stem() const;
+  bool has_extension() const;
+  bool is_absolute() const;
+  bool is_relative() const;
 
-\tsreplace{}{}{+ \code{path& replace_filename(path-view-like p);}}
-
-\tsreplace{}{}{+ \code{path& replace_extension(path-view-like p);}}
-
-\tsreplace{}{}{+ \code{friend path operator/ (const path\& lhs, path-view-like rhs);}}
-
-\code{friend path operator/ (const path& lhs, const path& rhs);}
-
-\tsreplace{}{}{+ \code{friend path operator/ (path&& lhs, path&& rhs);}}
-
-\tsreplace{}{}{+ \code{friend path operator/ (path&& lhs, path-view-like rhs);}}
-
-\tsreplace{}{}{+ \code{friend path operator/ (path-view-like lhs, path-view-like rhs);}}
-
-\tsreplace{}{}{+ \code{int compare(path-view-like p) const;}}
-
+  // [fs.path.gen], generation
+  path lexically_normal() const;
+  path lexically_relative(const path& base) const;
+\end{lstlisting}
 \tsreplace{}{}{+ \code{path lexically_relative(path-view-like p) const;}}
-
+\begin{lstlisting}[language=cpp]
+  path lexically_proximate(const path& base) const;
+\end{lstlisting}
 \tsreplace{}{}{+ \code{path lexically_proximate(path-view-like p) const;}}
+\begin{lstlisting}[language=cpp]
 
-\code{const string_type& native() const} \tsreplace{}{}{\&}\code{ noexcept;}
+  // [fs.path.itr], iterators
+  class iterator;
+  using const_iterator = iterator;
 
-\tsreplace{}{}{+ \code{string_type&& native() && noexcept;}}
+  iterator begin() const;
+  iterator end() const;
 
+  // [fs.path.io], path inserter and extractor
+  template<class charT, class traits>
+    friend basic_ostream<charT, traits>&
+      operator<<(basic_ostream<charT, traits>& os, const path& p);
+  template<class charT, class traits>
+    friend basic_istream<charT, traits>&
+      operator>>(basic_istream<charT, traits>& is, path& p);
+};
+\end{lstlisting}
+
+\emph{Wording note:}
+The definitions for the member functions declared above are not provided at this time.
+Their semantics should be relatively obvious, except for \code{format formatting() const noexcept}, for which:
+
+\tsreplace{}{}{+ \note{If the \code{path} implementation does not store the formatting with which it was created (all of libstdc++, libc++ and MSVC's implementations currently ignore the parameter entirely), this function ought to return \code{auto_format}.}}
 
 \tsref{fs.path.construct}{29.12.6.5.1}
 
@@ -797,7 +997,7 @@ namespace std {
 visit([&p](auto sv) -> path {
   if constexpr(same_as<remove_cvref_t<decltype(sv)>, span<const byte>>)
   {
-    // See later normative wording
+    return \emph{path-from-binary}(sv);
   }
   else
   {
@@ -806,40 +1006,15 @@ visit([&p](auto sv) -> path {
 }, p.view);
 \end{lstlisting}
 
-\tsreplace{}{}{+ \code{path(path-view-like p, const locale& loc);}}
-
-\tsreplace{}{}{+ \effects Constructs an object of class \code{path} by an equivalent call to:}
-\begin{lstlisting}[language=cpp]
-visit([&p, &loc](auto sv) -> path {
-  if constexpr(same_as<remove_cvref_t<decltype(sv)>, span<const byte>>)
-  {
-    // See later normative wording
-  }
-  else
-  {
-    return path(sv, loc, p.formatting());
-  }
-}, p.view);
-\end{lstlisting}
-
 \tsreplace{}{}{+ \code{format formatting() const noexcept;}}
 
 \tsreplace{}{}{+ \returns The appropriate path separator format interpretation for the current path's contents.}
 
-\note{For brevity, I have not described the \code{path-view-like} added overloads as they are all equivalent to calling the path overload with a path constructed from the path view. Obviously implementations can be more efficient here by avoiding a dynamic memory allocation in a temporarily constructed path.}
+\emph{Wording note:} 
+
+For brevity, I have not described the \code{path-view-like} added overloads as they are all equivalent to calling the path overload with a path constructed from the path view. Obviously implementations can be more efficient here by avoiding a dynamic memory allocation in a temporarily constructed path.
 
 \color{darkgreen}
-
-\subsection*{Class \code{path-view-like} [fs.path\_view\_like]}
-
-The exposition-only type \code{path-view-like} is implicitly constructible from any type \code{T} for which:
-
-\begin{itemize}
-\item \code{std::is_convertible<T, path_view>} is \code{true}, and
-\item \code{std::is_convertible<T, path>} is \code{false}
-\end{itemize}
-
-and which has a single exposition-only member \code{view} of type \code{path_view} which is initialized from the object of type \code{T}.
 
 \subsection*{Class \code{path_view_component} [fs.path\_view\_component]}
 
@@ -1268,9 +1443,9 @@ Enumeration \code{termination} allows users to specify whether the backing data 
 
 \returns Let \code{s} refer to one element of backing data after the last separator element \emph{sep} as interpreted by \code{formatting()} in the path view component, otherwise then to the first element in the path view component; let \code{e} refer to the last period within \code{[s + 1, native_size())} unless \code{[s, native_size())} is `..', otherwise then to one past the last element in the path view component; returns the portion of the path view component matching \code{[s, e)}.
 
-\complexity \code{O(native_size())}.\\
+\complexity \code{O(native_size())}.
 
-\remarks{The current normative wording for \code{path::stem()} is unclear how to handle \code{"/foo/bar/.."}, so here \code{stem()} returns `..' and \code{extension()} returns `' in this circumstance.}
+\remarks{The current normative wording for \code{path::stem()} is unclear how to handle \code{"/foo/bar/.."}, so here \code{stem()} returns `..' and \code{extension()} returns `' in this circumstance.}\\
 
 \begin{lstlisting}[language=cpp]
     constexpr path_view_component extension() const noexcept;
@@ -1300,9 +1475,9 @@ Enumeration \code{termination} allows users to specify whether the backing data 
     \end{lstlisting}
 \end{itemize}
 
-\complexity \code{O(native_size())}.\\
+\complexity \code{O(native_size())}.
 
-\remarks{The above wording is intended to retain an important source of optimisation whereby implementations do not actually have to construct a \code{path_view_component::rendered_path} nor a \code{path} from those buffers e.g. if the backing data for both \code{*this} and \code{p} are of the same encoding, the two backing data ranges can be compared directly (ignoring multiple path separators etc), if and only if the same comparison result would occur if both buffers were converted to \code{path} and those paths compared.}
+\remarks{The above wording is intended to retain an important source of optimisation whereby implementations do not actually have to construct a \code{path_view_component::rendered_path} nor a \code{path} from those buffers e.g. if the backing data for both \code{*this} and \code{p} are of the same encoding, the two backing data ranges can be compared directly (ignoring multiple path separators etc), if and only if the same comparison result would occur if both buffers were converted to \code{path} and those paths compared.}\\
 
 \color{darkgreen}
 
@@ -1316,7 +1491,7 @@ Enumeration \code{termination} allows users to specify whether the backing data 
     render_null_terminated(Allocator allocate = Allocator());
 \end{lstlisting}
 
-\returns \code{rendered_path<termination::null_terminated, T, Allocator, _internal_buffer_size>(*this, allocate);}
+\returns \code{rendered_path<termination::null_terminated, T, Allocator, _internal_buffer_size>(*this, allocate);}\\
 
 
 \begin{lstlisting}[language=cpp]
@@ -1428,7 +1603,7 @@ namespace std::filesystem {
 
 Class \code{path_view_component::rendered_path} is a mechanism for rendering a path view component's backing data into a buffer, optionally reencoded, optionally zero terminated. It is expected to be, in most cases, much more efficient than constructing a \code{path} from visiting the backing data, however unlike \code{path} it can also target non-\code{path::value_type} consumers of filesystem paths e.g. other programming languages or archiving libraries.
 
-The lifetime of the contained data in a \code{path_view_component::rendered_path} is tied to the backing data of the \code{path_view_component} used to construct it.
+The lifetime of the contained data in a \code{path_view_component::rendered_path} is tied to the backing data of the \code{path_view_component} used to construct it, and not to the lifetime of the \code{path_view_component} itself.
 
 It is important to note that the consumer of path view components determines the interpretation of path view components, not class \code{path_view_component::rendered_path} nor \code{path}. For example, if the backing data is unencoded bytes, a consuming implementation might choose to use a binary key API to open filesystem content instead of a path based API whose input comes from \code{path_view_component::rendered_path} or \code{path} i.e. APIs consuming path view components may behave differently if the backing data is in one format, or another.
 
@@ -1691,6 +1866,7 @@ basic_ostream<charT, traits>& operator<<(basic_ostream<charT, traits>& os, path_
       Otherwise some textual representation which is not
       a possible valid textual path is suggested.
       */
+      return os << quoted(\emph{path-from-binary}(sv).string<typename output_type::char_type>());
     }
     else
     {
@@ -1976,18 +2152,21 @@ The backward traversal order is the reverse of forward traversal. The iteration 
 \color{black}
 
 \begin{center}
-\begin{tabular}{|c c|}
+\begin{tabular}{|p{3cm} p{12cm}|}
 \hline
 \bf{Name} & \bf{Meaning}\\
+\hline
 \texttt{native\_format} & The native pathname format.\\
 \texttt{generic\_format} & The generic pathname format.\\
 \color{darkgreen}
 \tsreplace{}{}{+ \code{binary_format}} & \tsreplace{}{}{+ The binary pathname format.}\\
 \color{black}
 \texttt{auto\_format} &
-The interpretation of the format of the character sequence is implementation-defined.
+The interpretation of the format of the character sequence is
+implementation-defined.
 The implementation may inspect the content of the character sequence to determine the format.
 \emph{Recommended practice:} For POSIX-based systems, native and generic formats are equivalent and the character sequence should always be interpreted in the same way.\\
+\hline
 \end{tabular}
 \end{center}
 
