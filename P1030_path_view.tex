@@ -192,7 +192,7 @@ namespace detail {
 }
 
 std::filesystem::path_view v("foo");
-auto rpath = v.render_zero_terminated(detail::thread_local_scratch_allocator_t{});
+auto rpath = v.render_null_terminated(detail::thread_local_scratch_allocator_t{});
 int fd = ::open(rpath.c_str(), O_RDONLY);
     \end{lstlisting}
 \end{itemize}
@@ -206,6 +206,8 @@ The WG21 tracker for this paper can be found at \url{https://github.com/cplusplu
     \begin{itemize}
     \item Remove all overloads taking a \code{std::locale} as per LEWG guidance.
     \item Fix incorrect ostream formatter as reported by Victor (thanks!). 
+    \item Renamed render_zero_terminated to render_null_terminated
+    \item Renamed render_not_zero_terminated to render_unterminated
     \end{itemize}
 
     \item R4 => R5:
@@ -266,7 +268,7 @@ The following normative wording delta is against \url{https://www.open-std.org/j
 \tsreplace{}{}{+ \code{template<NonLegacyPath T>}}\\
 \tsreplace{}{}{+ \code{basic_filebuf* open(T&& s, ios_base::openmode mode);}}
 
-\tsreplace{}{}{+ \effects As if \code{open(render_zero_terminated(path_view(forward<T&&>(s))).c_str(), mode);}}
+\tsreplace{}{}{+ \effects As if \code{open(render_null_terminated(path_view(forward<T&&>(s))).c_str(), mode);}}
 
 \tsref{ifstream}{29.10.3}
 
@@ -283,14 +285,14 @@ ios_base::openmode mode = ios_base::in);}}
 \tsreplace{}{}{+ \code{explicit basic_ifstream(T&& s,
 ios_base::openmode mode = ios_base::in);}}
 
-\tsreplace{}{}{+ \effects As if \code{basic_ifstream(render_zero_terminated(path_view(forward<T&&>(s))).c_str(), mode);}}
+\tsreplace{}{}{+ \effects As if \code{basic_ifstream(render_null_terminated(path_view(forward<T&&>(s))).c_str(), mode);}}
 
 \tsrefp{ifstream.members}{29.10.3.3}{4}
 
 \tsreplace{}{}{+ \code{template<NonLegacyPath T>}}\\
 \tsreplace{}{}{+ \code{void open(T&& s, ios_base::openmode mode = ios_base::in);}}
 
-\tsreplace{}{}{+ \effects As if \code{open(render_zero_terminated(path_view(forward<T&&>(s))).c_str(), mode);}}
+\tsreplace{}{}{+ \effects As if \code{open(render_null_terminated(path_view(forward<T&&>(s))).c_str(), mode);}}
 
 
 \tsref{ofstream}{29.10.4}
@@ -309,14 +311,14 @@ ios_base::openmode mode = ios_base::out);}}
 \tsreplace{}{}{+ \code{explicit basic_ofstream(T&& s,
 ios_base::openmode mode = ios_base::out);}}
 
-\tsreplace{}{}{+ \effects As if \code{basic_ofstream(render_zero_terminated(path_view(forward<T&&>(s))).c_str(), mode);}}
+\tsreplace{}{}{+ \effects As if \code{basic_ofstream(render_null_terminated(path_view(forward<T&&>(s))).c_str(), mode);}}
 
 \tsrefp{ofstream.members}{29.10.4.4}{3}
 
 \tsreplace{}{}{+ \code{template<NonLegacyPath T>}}\\
 \tsreplace{}{}{+ \code{void open(T&& s, ios_base::openmode mode = ios_base::out);}}
 
-\tsreplace{}{}{+ \effects As if \code{open(render_zero_terminated(path_view(forward<T&&>(s))).c_str(), mode);}}
+\tsreplace{}{}{+ \effects As if \code{open(render_null_terminated(path_view(forward<T&&>(s))).c_str(), mode);}}
 
 
 \tsref{fstream}{29.10.5}
@@ -333,7 +335,7 @@ ios_base::openmode mode = ios_base::out);}}
 \tsreplace{}{}{+ \code{template<NonLegacyPath T>}}\\
 \tsreplace{}{}{+ \code{explicit basic_fstream(T&& s, ios_base::openmode mode = ios_base::in | ios_base::out);}}
 
-\tsreplace{}{}{+ \effects As if \code{basic_fstream(render_zero_terminated(path_view(forward<T&&>(s))).c_str(), mode);}}
+\tsreplace{}{}{+ \effects As if \code{basic_fstream(render_null_terminated(path_view(forward<T&&>(s))).c_str(), mode);}}
 
 
 \tsrefp{fstream.members}{29.10.5.3}{4}
@@ -341,7 +343,7 @@ ios_base::openmode mode = ios_base::out);}}
 \tsreplace{}{}{+ \code{template<NonLegacyPath T>}}\\
 \tsreplace{}{}{+ \code{void open(T&& s, ios_base::openmode mode = ios_base::in | ios_base::out);}}
 
-\tsreplace{}{}{+ \effects As if \code{open(render_zero_terminated(path_view(forward<T&&>(s))).c_str(), mode);}}
+\tsreplace{}{}{+ \effects As if \code{open(render_null_terminated(path_view(forward<T&&>(s))).c_str(), mode);}}
 
 
 \tsref{fs.filesystem.syn}{29.12.4}
@@ -827,7 +829,7 @@ namespace std::filesystem {
               size_type InternalBufferSize = default_internal_buffer_size>
     constexpr rendered_path<zero_termination::zero_terminated,
                             T, Allocator, _internal_buffer_size>
-    render_zero_terminated(path_view_component v,
+    render_null_terminated(path_view_component v,
                            const locale& loc,
                            Allocator allocate = Allocator());
     template <class T = typename path::value_type,
@@ -835,14 +837,14 @@ namespace std::filesystem {
               size_type InternalBufferSize = default_internal_buffer_size>
     constexpr rendered_path<zero_termination::zero_terminated,
                             T, Allocator, _internal_buffer_size>
-    render_zero_terminated(path_view_component v, Allocator allocate = Allocator());
+    render_null_terminated(path_view_component v, Allocator allocate = Allocator());
 
     template <class T = typename path::value_type,
               class Allocator = default_rendered_path_allocator<T>,
               size_type InternalBufferSize = default_internal_buffer_size>
     constexpr rendered_path<zero_termination::not_zero_terminated,
                             T, Allocator, _internal_buffer_size>
-    render_not_zero_terminated(path_view_component v,
+    render_unterminated(path_view_component v,
                                const locale& loc,
                                Allocator allocate = Allocator());
     template <class T = typename path::value_type,
@@ -850,7 +852,7 @@ namespace std::filesystem {
               size_type InternalBufferSize = default_internal_buffer_size>
     constexpr rendered_path<zero_termination::not_zero_terminated,
                             T, Allocator, _internal_buffer_size>
-    render_not_zero_terminated(path_view_component v, Allocator allocate = Allocator());
+    render_unterminated(path_view_component v, Allocator allocate = Allocator());
 
 
   private:
@@ -1367,7 +1369,7 @@ int open_file(path_view path)
   char will be performed, possibly dynamically allocating a
   buffer if rendered_path's internal buffer isn't big enough.
   */
-  auto zpath = path.render_zero_terminated();
+  auto zpath = path.render_null_terminated();
   return ::open(zpath.c_str(), O_RDONLY);
 }
 \end{lstlisting}

@@ -1,8 +1,8 @@
 # TODO for night of 15th June 2023
 
-[ ] Rename to render_null_terminated
+[x] Rename to render_null_terminated
 
-[ ] Rename to render_unterminated
+[x] Rename to render_unterminated
 
 [ ] Remove render<enum>
 
