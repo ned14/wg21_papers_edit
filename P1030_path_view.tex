@@ -227,6 +227,9 @@ The WG21 tracker for this paper can be found at \url{https://github.com/cplusplu
     The chosen solution is that \code{filesystem::path::format()} always
     returns \code{auto_format}, as that's what all three major implementations
     do by ignoring the supplied \code{format} construction parameter.
+    \item Use \emph{Returns} instead of \emph{Effects: As if} in overloads in [filebuf]
+    \item Fix uses of a free function \code{render_zero_terminated()} to be member functions
+    \item Clarify the lifetime semantics of \code{rendered_path}
     \end{itemize}
 
     \item R4 => R5:
@@ -1874,7 +1877,31 @@ The backward traversal order is the reverse of forward traversal. The iteration 
 
 \tsrefp{fs.enum.path.format}{29.12.8.1}{1}
 
-\tsreplace{}{}{+ \code{binary_format} The binary pathname format.}
+\color{black}
+
+\begin{center}
+\begin{tabular}{|c c|}
+\hline
+\bf{Name} & \bf{Meaning}
+\hline
+\code{native_format} &
+The native pathname format.
+\hline
+\code{generic_format} &
+The generic pathname format.
+\hline
+\color{darkgreen}
+\tsreplace{}{}{+ \code{binary_format}} &
+\tsreplace{}{}{+ The binary pathname format.}
+\hline
+\color{black}
+\code{auto_format} &
+The interpretation of the format of the character sequence is implementation-defined.
+The implementation may inspect the content of the character sequence to determine the format.
+\emph{Recommended practice:} For POSIX-based systems, native and generic formats are equivalent and the character sequence should always be interpreted in the same way.
+\hline
+\end{tabular}
+\end{center}
 
 \color{black}
 
