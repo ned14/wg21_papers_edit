@@ -232,6 +232,7 @@ The WG21 tracker for this paper can be found at \url{https://github.com/cplusplu
     \item Removed named type requirements and respecified \code{path_view}-accepting overloads in terms of \code{\emp{path-view-like}} (based on techniques used in P1928R4)
     \item Removed all notes for LEWG which weren't notes for the final text as per LEWG request.
     \item Updated feature test macro to \code{YYYYMML}
+    \item Removed erroneous parameter from \code{render_null_terminated} and \code{render_unterminated}
     \end{itemize}
 
     \item R4 => R5:
@@ -605,7 +606,7 @@ The exposition-only type \code{\emp{path-view-like}} is implicitly constructible
 \item \code{std::is_convertible<T, path>} is \code{false}
 \end{itemize}
 
-and which has a single exposition-only member \code{\emp{view}} of type \code{path_view} which is initialized from the object of type \code{T}.
+and has a single exposition-only member \code{\emp{view}} of type \code{path_view} which is initialized from the object of type \code{T}.
 
 \subsection*{Class \code{path_view_component} [fs.path\_view\_component]}
 
@@ -707,14 +708,14 @@ namespace std::filesystem {
               size_type InternalBufferSize = default_internal_buffer_size>
     constexpr rendered_path<zero_termination::zero_terminated,
                             T, Allocator, _internal_buffer_size>
-    render_null_terminated(path_view_component v, Allocator allocate = Allocator());
+    render_null_terminated(Allocator allocate = Allocator());
 
     template <class T = typename path::value_type,
               class Allocator = default_rendered_path_allocator<T>,
               size_type InternalBufferSize = default_internal_buffer_size>
     constexpr rendered_path<zero_termination::not_zero_terminated,
                             T, Allocator, _internal_buffer_size>
-    render_unterminated(path_view_component v, Allocator allocate = Allocator());
+    render_unterminated(Allocator allocate = Allocator());
 
 
   private:
