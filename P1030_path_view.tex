@@ -233,6 +233,7 @@ The WG21 tracker for this paper can be found at \url{https://github.com/cplusplu
     \item Removed all notes for LEWG which weren't notes for the final text as per LEWG request.
     \item Updated feature test macro to \code{YYYYMML}
     \item Removed erroneous parameter from \code{render_null_terminated} and \code{render_unterminated}
+    \item Added normative wording for \code{render_null_terminated} and \code{render_unterminated}
     \end{itemize}
 
     \item R4 => R5:
@@ -1071,6 +1072,31 @@ Enumeration \code{zero_termination} allows users to specify whether the backing 
 
 \remarks{The above wording is intended to retain an important source of optimisation whereby implementations do not actually have to construct a \code{path_view_component::rendered_path} nor a \code{path} from those buffers e.g. if the backing data for both \code{*this} and \code{p} are of the same encoding, the two backing data ranges can be compared directly (ignoring multiple path separators etc), if and only if the same comparison result would occur if both buffers were converted to \code{path} and those paths compared.}
 
+\color{darkgreen}
+
+
+\begin{lstlisting}[language=cpp]
+    template <class T = typename path::value_type,
+              class Allocator = default_rendered_path_allocator<T>,
+              size_type InternalBufferSize = default_internal_buffer_size>
+    constexpr rendered_path<zero_termination::zero_terminated,
+                            T, Allocator, _internal_buffer_size>
+    render_null_terminated(Allocator allocate = Allocator());
+\end{lstlisting}
+
+\returns \code{rendered_path<zero_termination::zero_terminated, T, Allocator, _internal_buffer_size>(*this, allocate);}
+
+
+\begin{lstlisting}[language=cpp]
+    template <class T = typename path::value_type,
+              class Allocator = default_rendered_path_allocator<T>,
+              size_type InternalBufferSize = default_internal_buffer_size>
+    constexpr rendered_path<zero_termination::not_zero_terminated,
+                            T, Allocator, _internal_buffer_size>
+    render_unterminated(Allocator allocate = Allocator());
+\end{lstlisting}
+
+\returns \code{rendered_path<zero_termination::not_zero_terminated, T, Allocator, _internal_buffer_size>(*this, allocate);}
 
 \subsection*{Class \code{path_view_component::rendered_path} [fs.path\_view\_component.rendered\_path]}
 

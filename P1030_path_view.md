@@ -8,7 +8,7 @@
 
 [x] Remove all locale based overloads
 
-[ ] Write normative wording for the render functions.
+[x] Write normative wording for the render functions.
 
 [X] Add clause explicitly tying lifetime of rendered_path to its backing data
 and not tying lifetime to its parent path view.
