@@ -214,6 +214,18 @@ The WG21 tracker for this paper can be found at \url{https://github.com/cplusplu
     \item Use \emph{Returns} instead of \emph{Effects: As if} in overloads in [filebuf]
     \item Fix uses of a free function \code{render_zero_terminated()} to be member functions
     \item Clarify the lifetime semantics of \code{rendered_path}
+    \item LEWG requested a table of which \code{filesystem::path} implementations store
+    the \code{format} with which they were created:
+    \begin{itemize}
+      \item libstdc++: Ignores the format supplied in the constructor completely
+      (throws the values away and does not store it).\\
+      \item MSVC: Ignores the format supplied in the constructor completely
+      (throws the values away and does not store it).\\
+      \item libc++: Ignores the format supplied in the constructor completely
+      (throws the values away and does not store it).\\
+    \end{itemize}
+    The chosen solution is that \code{filesystem::path::format()} always
+    returns \code{native_format}.
     \end{itemize}
 
     \item R4 => R5:
@@ -637,7 +649,7 @@ ios_base::openmode mode = ios_base::out);}}
 \tsreplace{}{}{+ \code{template<Cpp17PathView T>}}\\
 \tsreplace{}{}{+ \code{path& operator+=(T&& p);}}
 
-\tsreplace{}{}{+ \code{format formatting() const noexcept;}}
+\tsreplace{}{}{+ \code{format formatting() const noexcept { return format::native_format; }}}
 
 \tsreplace{}{}{+ \code{template<Cpp17PathView T>}}\\
 \tsreplace{}{}{+ \code{path& replace_filename(T&& p);}}
