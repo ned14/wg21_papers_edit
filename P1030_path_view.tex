@@ -225,7 +225,8 @@ The WG21 tracker for this paper can be found at \url{https://github.com/cplusplu
       (throws the values away and does not store it).\\
     \end{itemize}
     The chosen solution is that \code{filesystem::path::format()} always
-    returns \code{native_format}.
+    returns \code{auto_format}, as that's what all three major implementations
+    do by ignoring the supplied \code{format} construction parameter.
     \end{itemize}
 
     \item R4 => R5:
@@ -649,7 +650,9 @@ ios_base::openmode mode = ios_base::out);}}
 \tsreplace{}{}{+ \code{template<Cpp17PathView T>}}\\
 \tsreplace{}{}{+ \code{path& operator+=(T&& p);}}
 
-\tsreplace{}{}{+ \code{format formatting() const noexcept { return format::native_format; }}}
+\tsreplace{}{}{+ \code{format formatting() const noexcept;}}
+
+\tsreplace{}{}{+ \note{If the \code{path} implementation does not store the formatting with which it was created (all of libstdc++, libc++ and MSVC's implementations currently ignore the parameter entirely), this function ought to return \code{auto_format}.}}
 
 \tsreplace{}{}{+ \code{template<Cpp17PathView T>}}\\
 \tsreplace{}{}{+ \code{path& replace_filename(T&& p);}}
