@@ -100,7 +100,7 @@
 \newcommand{\tsreplace}[3]{\textcolor{red}{\sout{#1}}#2\textcolor{darkgreen}{#3}}
 
 \date{}
-\title{P1030R5: \texttt{std::filesystem::path\_view}}
+\title{D1030R6: \texttt{std::filesystem::path\_view}}
 
 \newcommand{\emailaddress}{s\_sourceforge@nedprod.com}
 \newcommand{\email}{\href{mailto:\emailaddress}{\emailaddress}}
@@ -111,8 +111,8 @@
 
 \begin{flushright}
   \begin{tabular}{ll}
-  Document \#:&P1030R5\\
-  Date:       &\date{2022-09-15}\\
+  Document \#:&D1030R6\\
+  Date:       &\date{2023-06-15}\\
   Project:    &Programming Language C++\\
               &Library Evolution Working Group\\
   Reply-to:   &\author{Niall Douglas}\\
@@ -202,6 +202,12 @@ int fd = ::open(rpath.c_str(), O_RDONLY);
 The WG21 tracker for this paper can be found at \url{https://github.com/cplusplus/papers/issues/406}.
 
 \begin{itemize}
+    \item R5 => R6:
+    \begin{itemize}
+    \item Remove all overloads taking a \code{std::locale} as per LEWG guidance.
+    \item Fix incorrect ostream formatter as reported by Victor (thanks!). 
+    \end{itemize}
+
     \item R4 => R5:
     \begin{itemize}
         \item Rebased proposed wording changes to the latest IS working draft.
@@ -930,7 +936,7 @@ namespace std::filesystem {
   
   // Output
   template<class charT, class traits>
-  basic_ostream<charT, traits>& operator<<(basic_ostream<charT, traits>& s, path_view_component v);
+  basic_ostream<charT, traits>& operator<<(basic_ostream<charT, traits>& os, path_view_component v);
 }
 \end{lstlisting}
 
@@ -1602,14 +1608,14 @@ Another thing to note is that if the user does not use the \code{loc} consuming 
 
 \begin{lstlisting}[language=cpp]
   template<class charT, class traits>
-  basic_ostream<charT, traits>& operator<<(basic_ostream<charT, traits>& s, path_view_component v);
+  basic_ostream<charT, traits>& operator<<(basic_ostream<charT, traits>& os, path_view_component v);
 \end{lstlisting}
 
 \effects Equivalent to:\begin{lstlisting}[language=cpp]
 template<class charT, class traits>
-basic_ostream<charT, traits>& operator<<(basic_ostream<charT, traits>& s, path_view_component v)
+basic_ostream<charT, traits>& operator<<(basic_ostream<charT, traits>& os, path_view_component v)
 {
-  return visit([&s, &v](auto sv) -> basic_ostream<charT, traits>& {
+  return visit([&os, &v](auto sv) -> basic_ostream<charT, traits>& {
     using input_type = remove_cvref_t<decltype(sv)>;
     using output_type = basic_ostream<charT, traits>;
 
@@ -1632,13 +1638,13 @@ basic_ostream<charT, traits>& operator<<(basic_ostream<charT, traits>& s, path_v
     {
       // Possibly reencode to ostream's character type
       path_view_component::rendered_path<typename output_type::char_type> zbuff(v, path_view_component::not_zero_terminated);
-      return quoted(s.write(zbuff.buffer, zbuff.length));
+      return os << quoted(basic_string_view<typename output_type::char_type>(zbuff.buffer, zbuff.length));
     }
   }, v);
 }
 \end{lstlisting}
 
-\returns \code{s}.\\
+\returns \code{os}.\\
 
 \subsection*{Class \code{path_view} [fs.path\_view]}
 
@@ -1915,9 +1921,11 @@ The backward traversal order is the reverse of forward traversal. The iteration 
 
 \section{Acknowledgements}
 
-Thanks to Billy O'Neal for making me rewrite most of my first attempt at this normative wording. Thanks to Jonathan Wakely for provided detailed notes as only the chair of LWG would perceive. Thanks to Corentin and Peter Dimov for additional feedback.
+R6 of this paper was written in the bar whilst at the Varna WG21 meeting
+for presentation the following day.
 
-R5 of this paper would not have happened in a timely fashion without my current client MayStreet London Stock Exchange Group permitting me a few work hours to complete the R5 revision. My thanks to them for enabling this paper revision, it has been some years since the last one!
+My two cocreators were Robert Leahy and Elias Kosunen, without whom this
+R6 would not have happened.
 
 \section{References}
 \let\oldsection=\section
