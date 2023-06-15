@@ -15,11 +15,11 @@ and not tying lifetime to its parent path view.
 
 [X] Rename named requirements to include 17
 
-[ ] Remove concepts using code
+[x] Remove concepts using code
 
 [X] ostream formatter is wrong?
 
-[ ] Spell out all the named requirements overloads, exclude byte overloads.
+[x] Spell out all the named requirements overloads, exclude byte overloads.
 
 [X] Fix the render_zero_terminated free function
 
