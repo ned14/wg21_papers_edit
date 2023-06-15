@@ -10,7 +10,7 @@
 
 [ ] Write normative wording for the render functions.
 
-[ ] Add clause explicitly tying lifetime of rendered_path to its backing data
+[X] Add clause explicitly tying lifetime of rendered_path to its backing data
 and not tying lifetime to its parent path view.
 
 [ ] Rename named requirements to include 17
@@ -21,7 +21,7 @@ and not tying lifetime to its parent path view.
 
 [ ] Spell out all the named requirements overloads, exclude byte overloads.
 
-[ ] Fix the render_zero_terminated free function
+[X] Fix the render_zero_terminated free function
 
 [ ] Fork a standard library, ensure filesystem overload selection are unaffected by new overloads.
 
