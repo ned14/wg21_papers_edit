@@ -6,7 +6,7 @@
 
 [x] Remove render<enum>
 
-[X] Remove all locale based overloads
+[x] Remove all locale based overloads
 
 [ ] Write normative wording for the render functions.
 

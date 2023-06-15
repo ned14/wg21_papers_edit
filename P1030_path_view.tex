@@ -209,6 +209,7 @@ The WG21 tracker for this paper can be found at \url{https://github.com/cplusplu
     \item Renamed render_zero_terminated to render_null_terminated
     \item Renamed render_not_zero_terminated to render_unterminated
     \item Removed render
+    \item Removed locale-based overloads
     \end{itemize}
 
     \item R4 => R5:
@@ -799,10 +800,6 @@ namespace std::filesystem {
              class Allocator = default_rendered_path_allocator<T>,
              size_type InternalBufferSize = default_internal_buffer_size>
     constexpr int compare(path_view_component p) const;
-    template<class T = typename path::value_type,
-             class Allocator = default_rendered_path_allocator<T>,
-             size_type InternalBufferSize = default_internal_buffer_size>
-    constexpr int compare(path_view_component p, const locale &loc) const;
 
     // Conversion
     template<enum path_view_component::zero_termination ZeroTermination,
@@ -817,24 +814,8 @@ namespace std::filesystem {
               size_type InternalBufferSize = default_internal_buffer_size>
     constexpr rendered_path<zero_termination::zero_terminated,
                             T, Allocator, _internal_buffer_size>
-    render_null_terminated(path_view_component v,
-                           const locale& loc,
-                           Allocator allocate = Allocator());
-    template <class T = typename path::value_type,
-              class Allocator = default_rendered_path_allocator<T>,
-              size_type InternalBufferSize = default_internal_buffer_size>
-    constexpr rendered_path<zero_termination::zero_terminated,
-                            T, Allocator, _internal_buffer_size>
     render_null_terminated(path_view_component v, Allocator allocate = Allocator());
 
-    template <class T = typename path::value_type,
-              class Allocator = default_rendered_path_allocator<T>,
-              size_type InternalBufferSize = default_internal_buffer_size>
-    constexpr rendered_path<zero_termination::not_zero_terminated,
-                            T, Allocator, _internal_buffer_size>
-    render_unterminated(path_view_component v,
-                               const locale& loc,
-                               Allocator allocate = Allocator());
     template <class T = typename path::value_type,
               class Allocator = default_rendered_path_allocator<T>,
               size_type InternalBufferSize = default_internal_buffer_size>
@@ -1206,19 +1187,6 @@ Enumeration \code{zero_termination} allows users to specify whether the backing 
 
 \note{The above wording is intended to retain an important source of optimisation whereby implementations do not actually have to construct a \code{path_view_component::rendered_path} nor a \code{path} from those buffers e.g. if the backing data for both \code{*this} and \code{p} are of the same encoding, the two backing data ranges can be compared directly (ignoring multiple path separators etc), if and only if the same comparison result would occur if both buffers were converted to \code{path} and those paths compared.}
 
-\color{darkgreen}
-
-\begin{lstlisting}[language=cpp]
-    template<class T = typename path::value_type,
-             class Allocator = default_rendered_path_allocator<T>,
-             size_type InternalBufferSize = default_internal_buffer_size>
-    constexpr int compare(path_view_component p, const locale& loc) const;
-\end{lstlisting}
-
-\constraints \code{T} is any one of: \code{char}, \code{wchar_t}, \code{char8_t}, \code{char16_t}, \code{byte}; \code{Allocator} is either its defaulted internal tag type, or meets \emph{Cpp17Allocator} requirements.
-
-\effects Equivalent to \code{compare<T, Allocator, InternalBufferSize>} but where the implied \code{path_view_component::rendered_path} is constructed with an additional \code{loc} argument.\\
-
 
 \subsection*{Class \code{path_view_component::rendered_path} [fs.path\_view\_component.rendered\_path]}
 
@@ -1247,10 +1215,6 @@ namespace std::filesystem {
     // constructors and destructor
     rendered_path() noexcept;
     ~rendered_path();
-    
-    constexpr rendered_path(path_view_component v,
-                            const locale& loc,
-                            Allocator allocate = Allocator());
     
     constexpr rendered_path(path_view_component v, Allocator allocate = Allocator());
 
@@ -1379,9 +1343,7 @@ int open_file(path_view path)
 \effects If during construction a dynamic memory allocation was required, that is released using the \code{Allocator} instance which was supplied during construction, or the internal platform-specific allocator if appropriate.\\
 
 \begin{lstlisting}[language=cpp]
-    constexpr rendered_path(path_view_component v,
-                            const locale& loc,
-                            Allocator allocate = Allocator());
+    constexpr rendered_path(path_view_component v, Allocator allocate = Allocator());
 \end{lstlisting}
 
 \effects
@@ -1440,23 +1402,9 @@ int open_file(path_view path)
         \item \code{data()} returns the backing data.
     \end{itemize}
 
-    \item Otherwise, a reencoding of the backing data into \code{value_type} shall be performed using \code{loc}, replacing any generic path separators with native path separators if \code{v.formatting()} allows that, zero \code{value_type} terminating the reencoded buffer if \code{zero_termination} is \code{zero_terminated}. \code{data()} shall return that reencoded path, and \code{size()} shall be the number of elements output, excluding any zero termination appended. It is defined by \code{loc} what occurs if the backing data contains invalid codepoints for its declared encoding.
-
-\color{black}
-
-\note{It should be noted that it is not always possible to directly use \code{loc} for a reencode between certain combinations of source and destination encoding on some platforms. For example, on Microsoft Windows, because the narrow system encoding is runtime configurable and therefore a system API is always invoked to perform a reencode to the narrow system encoding, one cannot use \code{loc} directly. Rather, one uses \code{loc} to reencode from the source encoding into \code{wchar_t}, then invoke the Microsoft Windows system API to reencode from \code{wchar_t} to the narrow system encoding i.e. there are two reencode passes here. Reading the current normative wording for how \code{path} uses \code{loc}, this appears to be a valid interpretation of how \code{path} already works, though I do note \code{path}'s wording in this area is somewhat ambiguous currently.
-
-Another thing to note is that if the user does not use the \code{loc} consuming overload, we need to allow implementations to use any as-if equivalent reencoding mechanism to \code{std::locale()}. This is because some platforms implement system APIs for reencoding strings which have far better performance than standard library facilities, and we ought to not prevent implementations making use of those. The current \code{path} normative wording also appears to allow this optimisation.}
-
-\color{darkgreen}
+    \item Otherwise, a reencoding of the backing data into \code{value_type} shall be performed, replacing any generic path separators with native path separators if \code{v.formatting()} allows that, zero \code{value_type} terminating the reencoded buffer if \code{zero_termination} is \code{zero_terminated}. \code{data()} shall return that reencoded path, and \code{size()} shall be the number of elements output, excluding any zero termination appended.
 
 \end{itemize}
-
-\begin{lstlisting}[language=cpp]
-    constexpr rendered_path(path_view_component v, Allocator allocate = Allocator());
-\end{lstlisting}
-
-\effects The member functions \code{data()} and \code{size()} return values as for the preceding overload, using implementation defined mechanisms for performing reencodings if that is necessary. Implementations are required to throw an exception if the backing data is \code{char8_t} or \code{char16_t} and the backing data contains an invalid codepoint for UTF-8 or UTF-16 respectively.\\
 
 \subsection*{Observers [fs.rendered\_path.obs]}
 
