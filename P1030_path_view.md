@@ -36,3 +36,8 @@ named in the "see later normative wording" comments.
 
 [ ] Fork a standard library, ensure filesystem overload selection are unaffected by new overloads.
 
+[ ] Mix and match `path` and `path-view-like` arguments for `equivalent` and others
+
+[ ] `noexcept` for `error_code` overloads
+
+[ ] Add `std::hash` for `path_view_component`
