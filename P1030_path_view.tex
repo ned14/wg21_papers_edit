@@ -205,7 +205,7 @@ The WG21 tracker for this paper can be found at \url{https://github.com/cplusplu
     \item R5 => R6:
     \begin{itemize}
     \item Remove all overloads taking a \code{std::locale} as per LEWG guidance.
-    \item Fix incorrect ostream formatter as reported by Victor (thanks\!). 
+    \item Fix incorrect ostream formatter as reported by Victor (thanks^^21). 
     \item Removed render
     \item Removed locale-based overloads
     \item Use \emph{Returns} instead of \emph{Effects: As if} in overloads in [filebuf]
@@ -227,7 +227,7 @@ The WG21 tracker for this paper can be found at \url{https://github.com/cplusplu
     \item Use \emph{Returns} instead of \emph{Effects: As if} in overloads in [filebuf]
     \item Fix uses of a free function \code{render_zero_terminated()} to be member functions
     \item Clarify the lifetime semantics of \code{rendered_path}
-    \item Removed named type requirements and respecified \code{path_view}-accepting overloads in terms of \code{\emph{path-view-like}} (based on techniques used in P1928R4)
+    \item Removed named type requirements and respecified \code{path_view}-accepting overloads in terms of \emph{path-view-like} (based on techniques used in P1928R4)
     \item Removed all notes for LEWG which weren't notes for the final text as per LEWG request.
     \item Updated feature test macro to \code{YYYYMML}
     \item Removed erroneous parameter from \code{render_null_terminated} and \code{render_unterminated}
@@ -258,7 +258,8 @@ The following normative wording delta is against \url{https://www.open-std.org/j
 
 \tsrefp{version.syn}{17.3.2}{2}
 
-\code{#define __cpp_lib_filesystem \tsreplace{201703L}{ }{YYYYMML}}
+\code{#define __cpp_lib_filesystem }
+\tsreplace{\code{201703L}}{ }{\code{YYYYMML}}
 \code{ // also in <filesystem>}
 
 \tsref{filebuf}{29.10.2}
