@@ -1,0 +1,1941 @@
+\documentclass[11pt]{article}
+
+\usepackage{color}
+\usepackage{xcolor}
+\usepackage{fullpage}
+\usepackage[colorlinks, allcolors=blue]{hyperref}
+\usepackage{listings}
+\usepackage{parskip}
+\usepackage{url}
+\usepackage{courier}
+\usepackage[T1]{fontenc}
+% \usepackage{libertine}%% Only as example for the romans/sans fonts
+\usepackage[scaled=0.85]{beramono}
+\usepackage{changepage}
+\usepackage{nameref}
+\usepackage[normalem]{ulem}
+
+% Solarized colour scheme for listings
+\definecolor{solarized@base03}{HTML}{002B36}
+\definecolor{solarized@base02}{HTML}{073642}
+\definecolor{solarized@base01}{HTML}{586e75}
+\definecolor{solarized@base00}{HTML}{657b83}
+\definecolor{solarized@base0}{HTML}{839496}
+\definecolor{solarized@base1}{HTML}{93a1a1}
+\definecolor{solarized@base2}{HTML}{EEE8D5}
+\definecolor{solarized@base3}{HTML}{FDF6E3}
+\definecolor{solarized@yellow}{HTML}{B58900}
+\definecolor{solarized@orange}{HTML}{CB4B16}
+\definecolor{solarized@red}{HTML}{DC322F}
+\definecolor{solarized@magenta}{HTML}{D33682}
+\definecolor{solarized@violet}{HTML}{6C71C4}
+\definecolor{solarized@blue}{HTML}{268BD2}
+\definecolor{solarized@cyan}{HTML}{2AA198}
+\definecolor{solarized@green}{HTML}{859900}
+
+\lstset{
+  basicstyle=\footnotesize\ttfamily,
+}
+
+% Define C++ syntax highlighting colour scheme
+\lstdefinelanguage{cpp}{
+  language=C++,
+  basicstyle=\footnotesize\ttfamily,
+  numbers=left,
+  numberstyle=\footnotesize,
+  tabsize=2,
+  breaklines=true,
+  escapeinside={@}{@},
+  numberstyle=\tiny\color{solarized@base01},
+  keywordstyle=\color{solarized@green},
+  stringstyle=\color{solarized@cyan}\ttfamily,
+  identifierstyle=\color{solarized@blue},
+  commentstyle=\color{solarized@base01},
+  emphstyle=\color{solarized@red},
+  frame=single,
+  rulecolor=\color{solarized@base2},
+  rulesepcolor=\color{solarized@base2},
+  showstringspaces=false,
+}
+
+\lstdefinelanguage{diff}{
+  morecomment=[f][\color{blue}]{@@},           % group identifier
+  morecomment=[f][\color{red}]{-},             % deleted lines
+  morecomment=[f][\color{green!50!black}]{+},  % added lines
+  morecomment=[f][\color{magenta}]{---},       % diff header lines
+  morecomment=[f][\color{magenta}]{+++},
+}
+
+\lstdefinelanguage{plus}{
+  basicstyle=\footnotesize\ttfamily\color{green!50!black},
+  emph={see,below,TypeSwitch,unspecified},
+  emphstyle=\itshape
+}
+
+\lstdefinelanguage{signature}{
+  basicstyle=\ttfamily\color{green!50!black},
+  emph={see,below,TypeSwitch,unspecified},
+  emphstyle=\itshape
+}
+
+\newcommand{\code}[2][cpp]{\lstinline[language=#1,basicstyle=\small\ttfamily]{#2}}
+\newcommand{\desc}[1]{\textit{#1}}
+\newcommand{\constraints}{\desc{Constraints: }}
+\newcommand{\effects}{\desc{Effects: }}
+\newcommand{\expects}{\desc{Expects: }}
+\newcommand{\ensures}{\desc{Ensures: }}
+\newcommand{\throws}{\desc{Throws: }}
+\newcommand{\returns}{\desc{Returns: }}
+\newcommand{\remarks}{\desc{Remarks: }}
+\newcommand{\exceptionsafety}{\desc{Exception Safety: }}
+\newcommand{\complexity}{\desc{Complexity: }}
+\newcommand{\note}[1]{\begin{quote}[\textit{Note:} #1 -- end note]\end{quote}}
+
+\newcommand{\fullref}[1]{\ref{#1} \nameref{#1}}
+
+\newcommand{\tsrefp}[3]{\subsection*{In #2 \textbf{[#1]} paragraph #3:}}
+\newcommand{\tsref}[2]{\subsection*{In #2 \textbf{[#1]}:}}
+\newcommand{\tsrefz}[1]{\subsection*{In #1:}}
+\definecolor{darkgreen}{rgb}{0,0.5,0}
+\newcommand{\tsreplace}[3]{\textcolor{red}{\sout{#1}}#2\textcolor{darkgreen}{#3}}
+
+\date{}
+\title{P1030R5: \texttt{std::filesystem::path\_view}}
+
+\newcommand{\emailaddress}{s\_sourceforge@nedprod.com}
+\newcommand{\email}{\href{mailto:\emailaddress}{\emailaddress}}
+
+\begin{document}
+
+\maketitle\vspace{-2cm}
+
+\begin{flushright}
+  \begin{tabular}{ll}
+  Document \#:&P1030R5\\
+  Date:       &\date{2022-09-15}\\
+  Project:    &Programming Language C++\\
+              &Library Evolution Working Group\\
+  Reply-to:   &\author{Niall Douglas}\\
+              &\textless\email\textgreater
+  \end{tabular}
+\end{flushright}
+
+A proposed wording for a \code{std::filesystem::path\_view\_component} and \code{std::filesystem::path\_view}, a non-owning view of explicitly unencoded or encoded character sequences in the format of a native or generic filesystem path, or a view of a binary key. In the Prague 2020 meeting, LEWG requested IS wording for this proposal targeting the C++ 23 standard release.
+
+There are lengthy, `persuasive', arguments about design rationale in R3 (\url{https://wg21.link/P1030R3}). From R4 onwards, this has been condensed into a set of design goals and change tracking log.
+
+If you wish to use an implementation right now, a highly-conforming reference implementation of the proposed path view can be found at \url{https://github.com/ned14/llfio/blob/master/include/llfio/v2.0/path\_view.hpp}. It has been found to work well on recent editions of GCC, clang and Microsoft Visual Studio, on x86, x64, ARM and AArch64. It has been in production use for several years now.
+
+My apologies for the two years which have elapsed since R4. `Real life' has intervened on my standards paper writing, and it is only due to my current client MayStreet London Stock Exchange Group allowing me a few work hours to work on standards papers that you see this R5 now and not yet more months from now. I hope that normal service will resume in 2023. I will not be at the upcoming Kona meeting, but I currently expect to be at the New York meeting in early 2023.
+
+\tableofcontents
+
+\section{Design goals}
+
+\subsection{\code{path_view_component} and \code{path_view}}
+
+\begin{itemize}
+    \item Path and path component views implement a non-owning, trivially copyable, runtime variant view instead of a compile time typed view such as \code{basic_string_view<CharT>}. They can represent backing data in one of:
+    \begin{itemize}
+        \item The narrow system encoding (\code{char}).
+        \item The wide system encoding (\code{wchar_t}).
+        \item UTF-8 encoding (\code{char8_t}).
+        \item UTF-16 encoding (\code{char16_t}).
+        \item Unencoded raw bytes (\code{byte}).
+    \end{itemize}
+    LEWG has decided that \code{char32_t} is explicitly omitted for now, it could be added in a future standard if needed.
+    \item Path views, like paths, have an associated \emph{format}, which reuses and extends \code{filesystem::format}:
+    \begin{itemize}
+        \item \code{format::native_format}: The path's components are to be separated if needed by C++ only using the native separator only. Platform APIs may parse separation independently.
+        \item \code{format::generic_format}: The path's components are to be separated if needed by C++ only using the generic separator only. Platform APIs may parse separation independently.
+        \item \code{format::auto_format}: The path's components are to be separated if needed by C++ only using \emph{either} the native or generic separators (and in the case of path views, any mix thereof). Platform APIs may parse separation independently.
+        \item \code{format::binary_format}: The path's components are not to be separated if needed by C++ only in any way at all. Platform APIs may parse separation independently.
+    \end{itemize}
+    \item When a path view is iterated, it yields a path view component as according to the formatting set for that path view. A path view component cannot be iterated, as it is considered to represent a path which is not separated by path separators, however it still carries knowledge of its formatting as that may be used during rendition of the view to other formats.
+    
+    Constructing a path view component directly defaults to \code{format::binary_format} i.e. do not have C++ treat path separators as separators (this applies to the standard library only, not to platform APIs). It is intentionally possible to construct a path view component directly with other formatting, as an example this might induce the conversion of generic path separators to native path separators in path view consumers.
+    
+    Path views, like paths, have default formatting of \code{format::auto_format}.
+    \item Whilst the principle use case is expected to target file systems whose native filesystem encoding is \code{filesystem::path::value_type}, the design is generic to all kinds of path usage e.g. within a ZIP archiver library where paths may be hard coded to the narrow system encoding, or within Java JNI where paths are hard coded to UTF-16 on all platforms.
+    \item The design is intended to be Freestanding C++ compatible, albeit that if dynamic memory allocation or reencoding were required, neither would ever succeed unless a custom allocator were supplied. Thus path views ought to be available and usable without \code{path} being available. The design has an obvious implementation defined behaviour if exceptions are globally disabled.
+    
+    (This is to make possible a read-only `fake filesystem' embeddable into the program binary which could help improve the portability of hosted C++ code to freestanding)
+    \item Path views provide identity-based comparisons rather than across-encodings-based. There is a separate, potentially relatively very high cost, contents-after-reencode-comparing comparison function. Comparisons where path views may implicitly construct from literals are deleted to avoid end user performance surprises.
+    \item Path view consuming APIs determine how path views ought to be interpreted on a case by case basis, and this is generally implementation defined. For example, if the view consuming API is wrapping a file system, and that file system might support binary key file content lookup, the view consuming API may interpret unencoded raw byte input as a binary key, returning a failure if the target file system does not when questioned at runtime support binary keys.
+    
+    A path view consumer may reject unencoded raw byte input by throwing an exception or other mode of failure -- indeed \code{filesystem::path} is exactly one such consumer.
+    \item A number of convenience renderers of path views to a destination format are provided:
+    \begin{itemize}
+        \item \code{filesystem::path}'s constructors can accept all backing data encodings except unencoded raw bytes\footnote{It would be preferable if paths could also represent unencoded raw bytes, but they would need a completely different design, and it could not be binary compatible with existing path implementations.}, and we provide convenience path view accepting constructor overloads which \code{visit()} the backing data and construct a path from that. These additional constructors on \code{path} are \code{explicit} to prevent hidden performance impact surprises.
+        \item \code{path_view.render()} will render a path view to a destination encoding and zero termination using an internal buffer to avoid dynamic memory allocation. See detail below.
+    \end{itemize}
+    \item \code{path_view} inherits publicly from \code{path_view_component}, and contains no additional member data. \code{path_view} can be implicitly constructed from \code{path_view_component}. Thus both types are implicitly convertible from and into one another. Note however that the formatting setting is propagated unchanged during conversion, which whilst not ideal, is considered to be the least worst of the choices available.
+    \item Finally, two extra free function overloads are added for \code{path} which fix performance issues and make path more consistent with the rest of the standard library.
+\end{itemize}
+
+\subsection{\code{path_view::rendered_path}}
+
+\begin{itemize}
+    \item \code{path_view.render()} returning a \code{path_view::rendered_path} is expected to be the most commonly used mechanism in newly written code for rendering a path view ready for consumption by a platform syscall, or C function accepting a zero terminated codepoint array. If the user supplies backing data in a compatible encoding to the destination encoding, reencoding can be avoided. If the user supplies backing data which is zero terminated, or the destination does not require zero termination according to the parameters supplied to \code{render()}, memory copying can be avoided. For the vast majority of C++ code on POSIX platforms when targeting the filesystem, reencoding is always avoided and memory copying is usually avoided due to C++ source code string literals having a compatible encoding with filesystem paths.
+    \item For the default configuration of \code{rendered_path}, dynamic memory allocation is usually avoided through the use of a reasonably large inline buffer. This makes \code{rendered_path} markedly larger than most classes typically standardised by the committee (expected to be between 1Kb and 2Kb depending on platform, but actual size is chosen by implementers). The intent is that \code{rendered_path} will be instantiated on the stack immediately preceding a syscall to render the path view into an appropriate form for that syscall. Upon the syscall's return, the \code{rendered_path} is unwound in the usual way. Therefore the large size is not the problem it might otherwise be.
+    \item \code{rendered_path} is intended to be storable within STL containers as that can be useful sometimes, and provides assignment so a single stack allocated \code{rendered_path} instance can be reused for multiple path view inputs during a function. Via template parameters, \code{rendered_path} can be forced to be small for any particular use case, and thus exclusively use dynamic memory allocation. Similarly, via template parameters one can force \code{rendered_path} to be as large as the maximum possible path (e.g. \code{PATH_MAX}) and thus guarantee that no dynamic memory allocation can ever occur.
+    \item For typical end users, \code{rendered_path} is expected to almost always be used with its default dynamic memory allocator, which uses an implementation defined allocator (this permits avoidance of an unnecessary extra dynamic memory allocation and memory copy on some platforms).
+    
+    If one wishes to customise dynamic memory allocation, one can supply an \code{allocator} instance as a parameter:
+
+    \begin{lstlisting}[language=cpp]
+namespace detail {
+  struct thread_local_scratch_allocator_t {
+    char *allocate(size_t);
+    void deallocate(void *, size_t);
+  };
+}
+
+std::filesystem::path_view v("foo");
+auto rpath = v.render_zero_terminated(detail::thread_local_scratch_allocator_t{});
+int fd = ::open(rpath.c_str(), O_RDONLY);
+    \end{lstlisting}
+\end{itemize}
+
+\section{Change tracking log for LWG since R4}
+
+The WG21 tracker for this paper can be found at \url{https://github.com/cplusplus/papers/issues/406}.
+
+\begin{itemize}
+    \item R4 => R5:
+    \begin{itemize}
+        \item Rebased proposed wording changes to the latest IS working draft.
+        \item Bumped \code{__cpp_lib_filesystem} value to \code{202209L}.
+        \item \code{struct c_str} was renamed to \code{class rendered_path}, with added convenience functions of \\
+        \code{zero_terminated_rendered_path} and \code{not_zero_terminated_rendered_path}.
+        \item Member variables in \code{rendered_path} became member function accessors.
+        \item A new member function \code{rendered_path::c_str()} becomes available if and only if a zero terminated rendition is requested. This required moving the zero termination specifier into a template parameter. \code{rendered_path::data()} and \code{rendered_path::size()} are available in all use cases.
+        \item All custom dynamic allocation mechanisms for \code{rendered_path} other than STL allocators were removed, though the default `implementation defined' dynamic allocator is retained to improve optimisation opportunities on some platforms.
+        \item Added \code{path_view::render()} as per LEWG request, with added convenience functions \code{path_view::render_zero_terminated()} and \code{path_view::render_not_zero_terminated()}.
+        \item Added \code{hash_value()} overloads for \code{path_view_component}, \code{path_view} and \code{rendered_path}.
+    \end{itemize}
+\end{itemize}
+
+\section{Delta from N4861}
+
+The following normative wording delta is against \url{https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2021/n4901.pdf}. Green text is wording to be added, red text is wording to be removed, black text is generally notes to LEWG which shall be removed if the paper is sent to LWG.
+
+\tsref{After 16.4.4.6 \emph{Cpp17Allocator} requirements}{16.4.4.7 \emph{PathView} and \emph{NonLegacyPath} requirements [path\_view.requirements]}
+
+\tsrefz{16.4.4.7.1 General [path\_view.requirements.general]}
+
+\tsreplace{}{}{+ The library contains many functions which accept a filesystem path. For backwards compatibility, overload sets from previous standard revisions ought to be selected preferentially to path view overloads. The \code{PathView} and \code{NonLegacyPath} requirements enable overloads for non-legacy path inputs.}
+
+\tsrefz{16.4.4.7.2 \emph{PathView} requirement [path\_view.requirements.pathview]}
+
+\tsreplace{}{}{+ A type \code{P} meets the \code{PathView} requirements if it meets any one of:
+\begin{itemize}
+    \item It is a \code{filesystem::path_view_component}, or reference to that.
+    \item It is a \code{filesystem::path_view}, or reference to that.
+\end{itemize}}
+
+\tsrefz{16.4.4.7.3 \emph{NonLegacyPath} requirement [path\_view.requirements.nonlegacypath]}
+
+\tsreplace{}{}{+ A type \code{P} meets the \code{NonLegacyPath} requirements if it meets any one of:
+\begin{itemize}
+    \item It is a \code{filesystem::path_view_component}, or reference to that.
+    \item It is a \code{filesystem::path_view}, or reference to that.
+    \item It is convertible to \code{const byte*}.
+    \item It is convertible to \code{span<const byte>}.
+\end{itemize}}
+
+\tsrefp{version.syn}{17.3.2}{2}
+
+\code{#define __cpp_lib_filesystem}
+\tsreplace{201703L}{ }{202209L}
+\code{ // also in <filesystem>}
+
+\tsref{filebuf}{29.10.2}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T>}}\\
+\tsreplace{}{}{+ \code{basic_filebuf* open(T&& s, ios_base::openmode mode);}}
+
+\tsrefp{filebuf.members}{29.10.2.4}{7}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T>}}\\
+\tsreplace{}{}{+ \code{basic_filebuf* open(T&& s, ios_base::openmode mode);}}
+
+\tsreplace{}{}{+ \effects As if \code{open(render_zero_terminated(path_view(forward<T&&>(s))).c_str(), mode);}}
+
+\tsref{ifstream}{29.10.3}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T>}}\\
+\tsreplace{}{}{+ \code{explicit basic_ifstream(T&& s,
+ios_base::openmode mode = ios_base::in);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T>}}\\
+\tsreplace{}{}{+ \code{void open(T&& s, ios_base::openmode mode = ios_base::in);}}
+
+\tsrefp{ifstream.cons}{29.10.3.1}{4}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T>}}\\
+\tsreplace{}{}{+ \code{explicit basic_ifstream(T&& s,
+ios_base::openmode mode = ios_base::in);}}
+
+\tsreplace{}{}{+ \effects As if \code{basic_ifstream(render_zero_terminated(path_view(forward<T&&>(s))).c_str(), mode);}}
+
+\tsrefp{ifstream.members}{29.10.3.3}{4}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T>}}\\
+\tsreplace{}{}{+ \code{void open(T&& s, ios_base::openmode mode = ios_base::in);}}
+
+\tsreplace{}{}{+ \effects As if \code{open(render_zero_terminated(path_view(forward<T&&>(s))).c_str(), mode);}}
+
+
+\tsref{ofstream}{29.10.4}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T>}}\\
+\tsreplace{}{}{+ \code{explicit basic_ofstream(T&& s,
+ios_base::openmode mode = ios_base::out);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T>}}\\
+\tsreplace{}{}{+ \code{void open(T&& s, ios_base::openmode mode = ios_base::out);}}
+
+
+\tsrefp{ofstream.cons}{29.10.4.2}{5}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T>}}\\
+\tsreplace{}{}{+ \code{explicit basic_ofstream(T&& s,
+ios_base::openmode mode = ios_base::out);}}
+
+\tsreplace{}{}{+ \effects As if \code{basic_ofstream(render_zero_terminated(path_view(forward<T&&>(s))).c_str(), mode);}}
+
+\tsrefp{ofstream.members}{29.10.4.4}{3}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T>}}\\
+\tsreplace{}{}{+ \code{void open(T&& s, ios_base::openmode mode = ios_base::out);}}
+
+\tsreplace{}{}{+ \effects As if \code{open(render_zero_terminated(path_view(forward<T&&>(s))).c_str(), mode);}}
+
+
+\tsref{fstream}{29.10.5}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T>}}\\
+\tsreplace{}{}{+ \code{explicit basic_fstream(T&& s, ios_base::openmode mode = ios_base::in | ios_base::out);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T>}}\\
+\tsreplace{}{}{+ \code{void open(T&& s, ios_base::openmode mode = ios_base::in | ios_base::out);}}
+
+
+\tsrefp{fstream.cons}{29.10.5.2}{3}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T>}}\\
+\tsreplace{}{}{+ \code{explicit basic_fstream(T&& s, ios_base::openmode mode = ios_base::in | ios_base::out);}}
+
+\tsreplace{}{}{+ \effects As if \code{basic_fstream(render_zero_terminated(path_view(forward<T&&>(s))).c_str(), mode);}}
+
+
+\tsrefp{fstream.members}{29.10.5.3}{4}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T>}}\\
+\tsreplace{}{}{+ \code{void open(T&& s, ios_base::openmode mode = ios_base::in | ios_base::out);}}
+
+\tsreplace{}{}{+ \effects As if \code{open(render_zero_terminated(path_view(forward<T&&>(s))).c_str(), mode);}}
+
+
+\tsref{fs.filesystem.syn}{29.12.4}
+
+\tsreplace{}{}{+ \code{class path_view_component;}}\\
+\tsreplace{}{}{+ \code{class path_view;}}
+
+\tsreplace{}{}{+ \code{void swap(path_view_component& lhs, path_view_component& rhs);}}\\
+\tsreplace{}{}{+ \code{size_t hash_value(path_view_component p);}}\\
+\tsreplace{}{}{+ \code{size_t hash_value(path_view p);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T>}}\\
+\tsreplace{}{}{+ \code{path absolute(T&& p);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T>}}\\
+\tsreplace{}{}{+ \code{path absolute(T&& p, error_code& ec);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T>}}\\
+\tsreplace{}{}{+ \code{path canonical(T&& p);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T>}}\\
+\tsreplace{}{}{+ \code{path canonical(T&& p, error_code& ec);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T, NonLegacyPath U>}}\\
+\tsreplace{}{}{+ \code{void copy(T&& from, T&& to);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T, NonLegacyPath U>}}\\
+\tsreplace{}{}{+ \code{void copy(T&& from, T&& to, error_code& ec);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T, NonLegacyPath U>}}\\
+\tsreplace{}{}{+ \code{void copy(T&& from, T&& to, copy_options options);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T, NonLegacyPath U>}}\\
+\tsreplace{}{}{+ \code{void copy(T&& from, T&& to, copy_options options, error_code& ec);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T, NonLegacyPath U>}}\\
+\tsreplace{}{}{+ \code{bool copy_file(T&& from, T&& to);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T, NonLegacyPath U>}}\\
+\tsreplace{}{}{+ \code{bool copy_file(T&& from, T&& to, error_code& ec);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T, NonLegacyPath U>}}\\
+\tsreplace{}{}{+ \code{bool copy_file(T&& from, T&& to, copy_options options);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T, NonLegacyPath U>}}\\
+\tsreplace{}{}{+ \code{bool copy_file(T&& from, T&& to, copy_options options, error_code& ec);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T, NonLegacyPath U>}}\\
+\tsreplace{}{}{+ \code{void copy_symlink(T&& existing\_symlink, T&& new\_symlink);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T, NonLegacyPath U>}}\\
+\tsreplace{}{}{+ \code{void copy_symlink(T&& existing\_symlink, T&& new\_symlink, error_code& ec);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T>}}\\
+\tsreplace{}{}{+ \code{bool create_directories(T&& p);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T>}}\\
+\tsreplace{}{}{+ \code{bool create_directories(T&& p, error_code& ec);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T>}}\\
+\tsreplace{}{}{+ \code{bool create_directory(T&& p);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T>}}\\
+\tsreplace{}{}{+ \code{bool create_directory(T&& p, error_code& ec);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T, NonLegacyPath U>}}\\
+\tsreplace{}{}{+ \code{bool create_directory(T&& p, U&& attributes);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T, NonLegacyPath U>}}\\
+\tsreplace{}{}{+ \code{bool create_directory(T&& p, U&& attributes, error_code& ec);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T, NonLegacyPath U>}}\\
+\tsreplace{}{}{+ \code{void create_directory_symlink(T&& to, U&& new_symlink);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T, NonLegacyPath U>}}\\
+\tsreplace{}{}{+ \code{void create_directory_symlink(T&& to, U&& new_symlink, error_code& ec);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T, NonLegacyPath U>}}\\
+\tsreplace{}{}{+ \code{void create_hard_link(T&& to, U&& new_hard_link);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T, NonLegacyPath U>}}\\
+\tsreplace{}{}{+ \code{void create_hard_link(T&& to, U&& new_hard_link, error_code& ec);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T, NonLegacyPath U>}}\\
+\tsreplace{}{}{+ \code{void create_symlink(T&& to, U&& new_symlink);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T, NonLegacyPath U>}}\\
+\tsreplace{}{}{+ \code{void create_symlink(T&& to, U&& new_symlink, error_code& ec);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T>}}\\
+\tsreplace{}{}{+ \code{void current_path(T&& p);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T>}}\\
+\tsreplace{}{}{+ \code{void current_path(T&& p, error_code& ec);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T, NonLegacyPath U>}}\\
+\tsreplace{}{}{+ \code{bool equivalent(T&& p1, U&& p2);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T, NonLegacyPath U>}}\\
+\tsreplace{}{}{+ \code{bool equivalent(T&& p1, U&& p2, error_code& ec);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T>}}\\
+\tsreplace{}{}{+ \code{bool exists(T&& p);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T>}}\\
+\tsreplace{}{}{+ \code{bool exists(T&& p, error_code& ec);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T>}}\\
+\tsreplace{}{}{+ \code{uintmax_t file_size(T&& p);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T>}}\\
+\tsreplace{}{}{+ \code{uintmax_t file_size(T&& p, error_code& ec);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T>}}\\
+\tsreplace{}{}{+ \code{uintmax_t hard_link_count(T&& p);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T>}}\\
+\tsreplace{}{}{+ \code{uintmax_t hard_link_count(T&& p, error_code& ec);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T>}}\\
+\tsreplace{}{}{+ \code{bool is_block_file(T&& p);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T>}}\\
+\tsreplace{}{}{+ \code{bool is_block_file(T&& p, error_code& ec);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T>}}\\
+\tsreplace{}{}{+ \code{bool is_character_file(T&& p);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T>}}\\
+\tsreplace{}{}{+ \code{bool is_character_file(T&& p, error_code& ec);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T>}}\\
+\tsreplace{}{}{+ \code{bool is_directory(T&& p);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T>}}\\
+\tsreplace{}{}{+ \code{bool is_directory(T&& p, error_code& ec);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T>}}\\
+\tsreplace{}{}{+ \code{bool is_empty(T&& p);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T>}}\\
+\tsreplace{}{}{+ \code{bool is_empty(T&& p, error_code& ec);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T>}}\\
+\tsreplace{}{}{+ \code{bool is_fifo(T&& p);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T>}}\\
+\tsreplace{}{}{+ \code{bool is_fifo(T&& p, error_code& ec);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T>}}\\
+\tsreplace{}{}{+ \code{bool is_other(T&& p);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T>}}\\
+\tsreplace{}{}{+ \code{bool is_other(T&& p, error_code& ec);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T>}}\\
+\tsreplace{}{}{+ \code{bool is_regular_file(T&& p);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T>}}\\
+\tsreplace{}{}{+ \code{bool is_regular_file(T&& p, error_code& ec);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T>}}\\
+\tsreplace{}{}{+ \code{bool is_socket(T&& p);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T>}}\\
+\tsreplace{}{}{+ \code{bool is_socket(T&& p, error_code& ec);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T>}}\\
+\tsreplace{}{}{+ \code{bool is_symlink(T&& p);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T>}}\\
+\tsreplace{}{}{+ \code{bool is_symlink(T&& p, error_code& ec);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T>}}\\
+\tsreplace{}{}{+ \code{file_time_type last_write_time(T&& p);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T>}}\\
+\tsreplace{}{}{+ \code{file_time_type last_write_time(T&& p, error_code& ec);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T>}}\\
+\tsreplace{}{}{+ \code{void last_write_time(T&& p, file_time_type new_time);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T>}}\\
+\tsreplace{}{}{+ \code{void last_write_time(T&& p, file_time_type new_time, error_code& ec);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T>}}\\
+\tsreplace{}{}{+ \code{void permissions(T&& p, perms prms, perm_options opts=perm_options::replace);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T>}}\\
+\tsreplace{}{}{+ \code{void permissions(T&& p, perms prms, error_code& ec);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T>}}\\
+\tsreplace{}{}{+ \code{void permissions(T&& p, perms prms, perm_options opts,  error_code& ec);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T>}}\\
+\tsreplace{}{}{+ \code{path proximate(T&& p, error_code& ec);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T, NonLegacyPath U>}}\\
+\tsreplace{}{}{+ \code{path proximate(T&& p, U&& base = current_path());}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T, NonLegacyPath U>}}\\
+\tsreplace{}{}{+ \code{path proximate(T&& p, U&& base, error_code& ec);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T>}}\\
+\tsreplace{}{}{+ \code{path read_symlink(T&& p);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T>}}\\
+\tsreplace{}{}{+ \code{path read_symlink(T&& p, error_code& ec);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T>}}\\
+\tsreplace{}{}{+ \code{path relative(T&& p, error_code& ec);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T, NonLegacyPath U>}}\\
+\tsreplace{}{}{+ \code{path relative(T&& p, U&& base = current_path());}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T, NonLegacyPath U>}}\\
+\tsreplace{}{}{+ \code{path relative(T&& p, U&& base, error_code& ec);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T>}}\\
+\tsreplace{}{}{+ \code{bool remove(T&& p);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T>}}\\
+\tsreplace{}{}{+ \code{bool remove(T&& p, error_code& ec);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T>}}\\
+\tsreplace{}{}{+ \code{uintmax_t remove_all(T&& p);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T>}}\\
+\tsreplace{}{}{+ \code{uintmax_t remove_all(T&& p, error_code& ec);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T, NonLegacyPath U>}}\\
+\tsreplace{}{}{+ \code{void rename(T&& from, U&& to);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T, NonLegacyPath U>}}\\
+\tsreplace{}{}{+ \code{void rename(T&& from, U&& to, error_code& ec);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T>}}\\
+\tsreplace{}{}{+ \code{void resize_file(T&& p, uintmax_t size);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T>}}\\
+\tsreplace{}{}{+ \code{void resize_file(T&& p, uintmax_t size, error_code& ec);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T>}}\\
+\tsreplace{}{}{+ \code{space_info space(T&& p);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T>}}\\
+\tsreplace{}{}{+ \code{space_info space(T&& p, error_code& ec);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T>}}\\
+\tsreplace{}{}{+ \code{file_status status(T&& p);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T>}}\\
+\tsreplace{}{}{+ \code{file_status status(T&& p, error_code& ec);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T>}}\\
+\tsreplace{}{}{+ \code{file_status symlink_status(T&& p);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T>}}\\
+\tsreplace{}{}{+ \code{file_status symlink_status(T&& p, error_code& ec);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T>}}\\
+\tsreplace{}{}{+ \code{path weakly_canonical(T&& p);}}
+
+\tsreplace{}{}{+ \code{template<NonLegacyPath T>}}\\
+\tsreplace{}{}{+ \code{path weakly_canonical(T&& p, error_code& ec);}}
+
+
+\tsrefp{fs.class.path}{29.12.6}{6}
+
+\tsreplace{}{}{+ \code{template<PathView T>}}\\
+\tsreplace{}{}{+ \code{explicit path(T&& p);}}
+
+\tsreplace{}{}{+ \code{template<PathView T>}}\\
+\tsreplace{}{}{+ \code{path(T&& p, const locale& loc);}}
+
+\tsreplace{}{}{+ \code{template<PathView T>}}\\
+\tsreplace{}{}{+ \code{path& operator=(T&& p);}}
+
+\tsreplace{}{}{+ \code{template<PathView T>}}\\
+\tsreplace{}{}{+ \code{path& assign(T&& p);}}
+
+\tsreplace{}{}{+ \code{template<PathView T>}}\\
+\tsreplace{}{}{+ \code{path& operator/=(T&& p);}}
+
+\tsreplace{}{}{+ \code{template<PathView T>}}\\
+\tsreplace{}{}{+ \code{path& operator+=(T&& p);}}
+
+\tsreplace{}{}{+ \code{format formatting() const noexcept;}}
+
+\tsreplace{}{}{+ \code{template<PathView T>}}\\
+\tsreplace{}{}{+ \code{path& replace_filename(T&& p);}}
+
+\tsreplace{}{}{+ \code{template<PathView T>}}\\
+\tsreplace{}{}{+ \code{path& replace_extension(T&& p);}}
+
+\tsreplace{}{}{+ \code{template<PathView T>}}\\
+\tsreplace{}{}{+ \code{friend path operator/ (const path\& lhs, T&& rhs);}}
+
+\tsreplace{}{}{+ \code{friend path operator/ (path&& lhs, path&& rhs);}}
+
+\note{The above rvalue ref path \code{operator/} overload isn't strictly needed for path view, but helps ameliorate the \code{"my" / "path" / "literal"} pattern you see in code which is currently extremely inefficient at runtime.}
+
+\tsreplace{}{}{+ \code{template<PathView T>}}\\
+\tsreplace{}{}{+ \code{friend path operator/ (path&& lhs, T&& rhs);}}
+
+\tsreplace{}{}{+ \code{template<PathView T, PathView U>}}\\
+\tsreplace{}{}{+ \code{friend path operator/ (T&& lhs, U&& rhs);}}
+
+\tsreplace{}{}{+ \code{template<PathView T>}}\\
+\tsreplace{}{}{+ \code{int compare(T&& p) const;}}
+
+\tsreplace{}{}{+ \code{template<PathView T>}}\\
+\tsreplace{}{}{+ \code{path lexically_relative(T&& p) const;}}
+
+\tsreplace{}{}{+ \code{template<PathView T>}}\\
+\tsreplace{}{}{+ \code{path lexically_proximate(T&& p) const;}}
+
+\code{const string_type& native() const} \tsreplace{}{}{\&}\code{ noexcept;}
+
+\tsreplace{}{}{+ \code{string_type&& native() && noexcept;}}
+
+\note{The above rvalue ref path overload isn't strictly needed for path view, but makes path more consistent with stringstream's \code{str()}, and lets one write more efficient code. I'll also be honest in saying that more than once in performance critical code I've written code such as \code{const_cast<string_type&>(path.native()).resize(N)} and then written a hexadecimal string directly into path's underlying string representation.}
+
+
+\tsref{fs.path.construct}{29.12.6.5.1}
+
+\tsreplace{}{}{+ \code{template<PathView T>}}\\
+\tsreplace{}{}{+ \code{explicit path(T&& p);}}
+
+\tsreplace{}{}{+ \effects Constructs an object of class \code{path} by an equivalent call to:}
+\begin{lstlisting}[language=cpp]
+visit([&p](auto sv) -> path {
+  if constexpr(same_as<remove_cvref_t<decltype(sv)>, span<const byte>>)
+  {
+    // Implementation defined
+  }
+  else
+  {
+    return path(sv, p.formatting());
+  }
+}, p);
+\end{lstlisting}
+
+\tsreplace{}{}{+ \code{template<PathView T>}}\\
+\tsreplace{}{}{+ \code{path(T&& p, const locale& loc);}}
+
+\tsreplace{}{}{+ \effects Constructs an object of class \code{path} by an equivalent call to:}
+\begin{lstlisting}[language=cpp]
+visit([&p, &loc](auto sv) -> path {
+  if constexpr(same_as<remove_cvref_t<decltype(sv)>, span<const byte>>)
+  {
+    // Implementation defined
+  }
+  else
+  {
+    return path(sv, loc, p.formatting());
+  }
+}, p);
+\end{lstlisting}
+
+\tsreplace{}{}{+ \code{format formatting() const noexcept;}}
+
+\tsreplace{}{}{+ \returns The appropriate path separator format interpretation for the current path's contents.}
+
+\note{For brevity, I have not described the \code{PathView} added overloads as they are all equivalent to calling the path overload with a path constructed from the path view. Obviously implementations can be more efficient here by avoiding a dynamic memory allocation in a temporarily constructed path.}
+
+\color{darkgreen}
+
+\subsection*{Class \code{path_view_component} [fs.path\_view\_component]}
+
+An object of class \code{path_view_component} refers to a source of data from which a filesystem path can be derived. To avoid confusion, in the remainder of this section this source of data shall be called \emph{the backing data}.
+
+Any operation that invalidates a pointer within the range of that backing data invalidates pointers, iterators and references returned by \code{path_view_component}.
+
+\code{path_view_component} is trivially copyable.
+
+The complexity of \code{path_view_component} member functions is O(1) unless otherwise specified.
+
+\begin{lstlisting}[language=cpp]
+namespace std::filesystem {
+  class path_view_component {
+  public:
+    using size_type = /* implementation defined */;
+    static constexpr path::value_type preferred_separator = path::preferred_separator;
+    static constexpr size_t default_internal_buffer_size = /* implementation defined */;
+    
+    using format = path::format;
+
+    enum zero_termination {
+      zero_terminated,
+      not_zero_terminated
+    };
+    
+    template<class T>
+    /* implementation defined */ default_rendered_path_allocator = /* implementation defined */;
+    
+    // Constructors and destructor
+    constexpr path_view_component() noexcept;
+    
+    path_view_component(path_view_component, format fmt) noexcept;
+
+    path_view_component(const path &p) noexcept;
+    template<class CharT>
+    constexpr path_view_component(const basic_string<CharT>& s,
+                                  format fmt = path::binary_format) noexcept;
+
+    template<class CharT>
+    constexpr path_view_component(const CharT* b, size_type l, enum zero_termination zt,
+                                  format fmt = path::binary_format) noexcept;
+    constexpr path_view_component(const byte* b, size_type l, enum zero_termination zt) noexcept;
+
+    template<class CharT>
+    constexpr path_view_component(const CharT* b, format fmt = path::binary_format) noexcept;
+    constexpr path_view_component(const byte* b) noexcept;
+
+    template<class CharT>
+    constexpr path_view_component(basic_string_view<CharT> b, enum zero_termination zt,
+                                  format fmt = path::binary_format) noexcept;
+    constexpr path_view_component(span<const byte> b, enum zero_termination zt) noexcept;
+
+    template<class It, class End>
+    constexpr path_view_component(It b, End e, enum zero_termination zt,
+                                  format fmt = path::binary_format) noexcept;
+    template<class It, class End>
+    constexpr path_view_component(It b, End e, enum zero_termination zt) noexcept;
+
+    constexpr path_view_component(const path_view_component&) = default;
+    constexpr path_view_component(path_view_component&&) = default;
+    constexpr ~path_view_component() = default;
+    
+    // Assignments
+    constexpr path_view_component &operator=(const path_view_component&) = default;
+    constexpr path_view_component &operator=(path_view_component&&) = default;
+    
+    // Modifiers
+    constexpr void swap(path_view_component& o) noexcept;
+    
+    // Query
+    [[nodiscard]] constexpr bool empty() const noexcept;
+    constexpr size_type native_size() const noexcept;
+    constexpr format formatting() const noexcept;
+    constexpr bool has_zero_termination() const noexcept;
+    constexpr enum zero_termination zero_termination() const noexcept;
+    constexpr bool has_stem() const noexcept;
+    constexpr bool has_extension() const noexcept;
+
+    constexpr path_view_component stem() const noexcept;
+    constexpr path_view_component extension() const noexcept;
+    
+    // Comparison
+    template<class T = typename path::value_type,
+             class Allocator = default_rendered_path_allocator<T>,
+             size_type InternalBufferSize = default_internal_buffer_size>
+    constexpr int compare(path_view_component p) const;
+    template<class T = typename path::value_type,
+             class Allocator = default_rendered_path_allocator<T>,
+             size_type InternalBufferSize = default_internal_buffer_size>
+    constexpr int compare(path_view_component p, const locale &loc) const;
+
+    // Conversion
+    template<enum path_view_component::zero_termination ZeroTermination,
+             class T = typename path::value_type,
+             class Allocator = default_rendered_path_allocator<T>,
+             size_type InternalBufferSize = default_internal_buffer_size>
+    class rendered_path;
+
+    // Conversion convenience
+    template <enum path_view_component::zero_termination ZeroTermination,
+              class T = typename path::value_type,
+              class Allocator = default_rendered_path_allocator<T>,
+              size_type InternalBufferSize = default_internal_buffer_size>
+    constexpr rendered_path<ZeroTermination, T, Allocator, _internal_buffer_size>
+    render(path_view_component v, const locale& loc, Allocator allocate = Allocator());
+    template <enum path_view_component::zero_termination ZeroTermination,
+              class T = typename path::value_type,
+              class Allocator = default_rendered_path_allocator<T>,
+              size_type InternalBufferSize = default_internal_buffer_size>
+    constexpr rendered_path<ZeroTermination, T, Allocator, _internal_buffer_size>
+    render(path_view_component v, Allocator allocate = Allocator());
+
+    template <class T = typename path::value_type,
+              class Allocator = default_rendered_path_allocator<T>,
+              size_type InternalBufferSize = default_internal_buffer_size>
+    constexpr rendered_path<zero_termination::zero_terminated,
+                            T, Allocator, _internal_buffer_size>
+    render_zero_terminated(path_view_component v,
+                           const locale& loc,
+                           Allocator allocate = Allocator());
+    template <class T = typename path::value_type,
+              class Allocator = default_rendered_path_allocator<T>,
+              size_type InternalBufferSize = default_internal_buffer_size>
+    constexpr rendered_path<zero_termination::zero_terminated,
+                            T, Allocator, _internal_buffer_size>
+    render_zero_terminated(path_view_component v, Allocator allocate = Allocator());
+
+    template <class T = typename path::value_type,
+              class Allocator = default_rendered_path_allocator<T>,
+              size_type InternalBufferSize = default_internal_buffer_size>
+    constexpr rendered_path<zero_termination::not_zero_terminated,
+                            T, Allocator, _internal_buffer_size>
+    render_not_zero_terminated(path_view_component v,
+                               const locale& loc,
+                               Allocator allocate = Allocator());
+    template <class T = typename path::value_type,
+              class Allocator = default_rendered_path_allocator<T>,
+              size_type InternalBufferSize = default_internal_buffer_size>
+    constexpr rendered_path<zero_termination::not_zero_terminated,
+                            T, Allocator, _internal_buffer_size>
+    render_not_zero_terminated(path_view_component v, Allocator allocate = Allocator());
+
+
+  private:
+    union
+    {
+      const byte* bytestr_{nullptr};  // exposition only
+      const char* charstr_;           // exposition only
+      const wchar_t* wcharstr_;       // exposition only
+      const char8_t* char8str_;       // exposition only
+      const char16_t* char16str_;     // exposition only
+    };
+    size_type length_{0};             // exposition only
+    uint16_t zero_terminated_ : 1;    // exposition only
+    uint16_t is_bytestr_ : 1;         // exposition only
+    uint16_t is_charstr_ : 1;         // exposition only
+    uint16_t is_wcharstr_ : 1;        // exposition only
+    uint16_t is_char8str_ : 1;        // exposition only
+    uint16_t is_char16str_ : 1;       // exposition only
+    format format_{format::unknown};  // exposition only
+  };
+  /* Note to be removed before LWG: if your platform has a maximum path size
+  which fits inside a uint32_t, it is possible to pack path views
+  into 2 * sizeof(void*), which can be returned in CPU registers on
+  x64 Itanium ABI.
+  */
+  static_assert(std::is_trivially_copyable_v<path_view_component>);  // to be removed before LWG
+  static_assert(sizeof(path_view_component) == 2 * sizeof(void*));   // to be removed before LWG
+
+  // Comparison
+  inline constexpr bool operator==(path_view_component a, path_view_component b) noexcept;
+  inline constexpr bool operator<(path_view_component a, path_view_component b) noexcept;
+  inline constexpr auto operator<=>(path_view_component a, path_view_component b) = default;
+
+  // Disabled comparisons
+  template<class CharT>
+  inline constexpr bool operator==(path_view_component, const CharT*) = delete;
+  template<class CharT>
+  inline constexpr bool operator==(path_view_component, basic_string_view<CharT>) = delete;
+  inline constexpr bool operator==(path_view_component, const byte*) = delete;
+  inline constexpr bool operator==(path_view_component, span<const byte>) = delete;
+
+  template<class CharT>
+  inline constexpr bool operator<(path_view_component, const CharT*) = delete;
+  template<class CharT>
+  inline constexpr bool operator<(path_view_component, basic_string_view<CharT>) = delete;
+  inline constexpr bool operator<(path_view_component, const byte*) = delete;
+  inline constexpr bool operator<(path_view_component, span<const byte>) = delete;
+
+  template<class CharT>
+  inline constexpr auto operator<=>(path_view_component, const CharT*) = delete;
+  template<class CharT>
+  inline constexpr auto operator<=>(path_view_component, basic_string_view<CharT>) = delete;
+  inline constexpr auto operator<=>(path_view_component, const byte*) = delete;
+  inline constexpr auto operator<=>(path_view_component, span<const byte>) = delete;
+
+  template<class CharT>
+  inline constexpr bool operator==(const CharT*, path_view_component) = delete;
+  template<class CharT>
+  inline constexpr bool operator==(basic_string_view<CharT>, path_view_component) = delete;
+  inline constexpr bool operator==(const byte*, path_view_component) = delete;
+  inline constexpr bool operator==(span<const byte>, path_view_component) = delete;
+
+  template<class CharT>
+  inline constexpr bool operator<(const CharT*, path_view_component) = delete;
+  template<class CharT>
+  inline constexpr bool operator<(basic_string_view<CharT>, path_view_component) = delete;
+  inline constexpr bool operator<(const byte*, path_view_component) = delete;
+  inline constexpr bool operator<(span<const byte>, path_view_component) = delete;
+
+  template<class CharT>
+  inline constexpr auto operator<=>(const CharT*, path_view_component) = delete;
+  template<class CharT>
+  inline constexpr auto operator<=>(basic_string_view<CharT>, path_view_component) = delete;
+  inline constexpr auto operator<=>(const byte*, path_view_component) = delete;
+  inline constexpr auto operator<=>(span<const byte>, path_view_component) = delete;
+
+  // Hash value
+  size_t hash_value(path_view_component v) noexcept;
+
+  // Visitation
+  template<class F>
+  inline constexpr auto visit(F &&f, path_view_component v);
+  
+  // Output
+  template<class charT, class traits>
+  basic_ostream<charT, traits>& operator<<(basic_ostream<charT, traits>& s, path_view_component v);
+}
+\end{lstlisting}
+
+The value of the \code{default_internal_buffer_size} member is an implementation chosen value for the default internal character buffer held within a \code{path_view_component::rendered_path} instance, which is usually instantiated onto the stack. It ought to be defined to a little more than the typical length of filesystem path on that platform\footnote{After much deliberation, LEWG chose 1,024 codepoints as a reasonable suggested default for most platforms.}.
+
+Enumeration \code{format} determines how, and whether, to interpret path separator characters within path views' backing data:
+\begin{itemize}
+    \item \code{unknown} may cause a run time diagnostic if path components need to be delineated. Depends on operation.
+    \item \code{native_format} causes only the native path separator character to delineate path components.
+    \item \code{generic_format} causes only the generic path separator character (`/') to delineate path components.
+    \item \code{binary_format} causes no delineation of path components at all in the backing data.
+    \item \code{auto_format} causes \emph{both} the native and generic path separators to delineate path components (and backing data may contain a mix of both).
+\end{itemize}
+
+Enumeration \code{zero_termination} allows users to specify whether the backing data has a zeroed value after the end of the supplied input.
+
+\code{default_rendered_path_allocator<T>} is a type possibly tagging the internal selection of an implementation defined allocator.
+
+\subsubsection*{Construction and assignment [fs.path\_view\_component.cons]}
+
+\begin{lstlisting}[language=cpp]
+   constexpr path_view_component() noexcept;
+\end{lstlisting}
+
+\effects Constructs an object of class \code{path_view_component} which is empty.
+
+\ensures \code{empty() == true} and \code{formatting() == format::unknown}.\\
+
+\begin{lstlisting}[language=cpp]
+    path_view_component(path_view_component, format fmt) noexcept;
+\end{lstlisting}
+
+\effects Constructs an object of class \code{path_view_component} which refers to the same backing data as the input path view component, but with different interpretation of path separators.
+
+\ensures \code{formatting() == fmt}.\\
+
+\begin{lstlisting}[language=cpp]
+    path_view_component(const path &p) noexcept;
+\end{lstlisting}
+
+\effects Constructs an object of class \code{path_view_component} which refers to a zero terminated contiguous sequence of \code{path::value_type} which begins at \code{p.c_str()} and continues for \code{p.native().size()} items.
+
+\ensures \code{formatting() == p.formatting()} and \code{zero_termination() == zero_terminated}.\\
+
+\begin{lstlisting}[language=cpp]
+    template<class CharT>
+    constexpr path_view_component(const basic_string<CharT>& s,
+                                  format fmt = path::binary_format) noexcept;
+\end{lstlisting}
+\constraints \code{CharT} is any one of: \code{char}, \code{wchar_t}, \code{char8_t}, \code{char16_t}.
+
+\effects Constructs an object of class \code{path_view_component} which refers to \code{[ s.data(), s.data() + s.size() )}.
+
+\ensures \code{formatting() == fmt} and \code{zero_termination() == zero_terminated}.\\
+
+\begin{lstlisting}[language=cpp]
+    template<class CharT>
+    constexpr path_view_component(const CharT* b, size_type l, enum zero_termination zt,
+                                  format fmt = path::binary_format) noexcept;
+\end{lstlisting}
+\constraints \code{CharT} is any one of: \code{char}, \code{wchar_t}, \code{char8_t}, \code{char16_t}.
+
+\expects If \code{zt} is \code{zero_terminated}, then \code{[b, b + l]} is a valid range and \code{b[l] == CharT(0)}; otherwise \code{[b, b + l)} is a valid range.
+
+\effects Constructs an object of class \code{path_view_component} which refers to a contiguous sequence of one of \code{char}, \code{wchar_t}, \code{char8_t} or \code{char16_t} which begins at \code{b} and continues for \code{l} items.
+
+\ensures \code{formatting() == fmt} and \code{zero_termination() == zt}.\\
+
+\begin{lstlisting}[language=cpp]
+    constexpr path_view_component(const byte* b, size_type l, enum zero_termination zt) noexcept;
+\end{lstlisting}
+
+\expects If \code{zt} is \code{zero_terminated}, then \code{[b, b + l]} is a valid range and \code{b[l] == CharT(0)}; otherwise \code{[b, b + l)} is a valid range.
+
+\effects Constructs an object of class \code{path_view_component} which refers to a contiguous sequence of \code{byte} which begins at \code{b} and continues for \code{l} items.
+
+\ensures \code{formatting() == format::binary_format} and \code{zero_termination() == zt}.\\
+
+
+\begin{lstlisting}[language=cpp]
+    template<class CharT>
+    constexpr path_view_component(const CharT* b, format fmt = path::binary_format) noexcept;
+\end{lstlisting}
+\constraints \code{CharT} is any one of: \code{char}, \code{wchar_t}, \code{char8_t}, \code{char16_t}.
+
+\expects \code{[b, b + char_traits<CharT>::length(b)]} is a valid range.
+
+\effects Equivalent to \code{path_view_component(b, char_traits<CharT>::length(b), fmt)}.
+
+\ensures \code{formatting() == fmt} and \code{zero_termination() == zero_terminated}.
+
+\complexity \code{O(char_traits<CharT>::length(b))}.\\
+
+\begin{lstlisting}[language=cpp]
+    constexpr path_view_component(const byte* b) noexcept;
+\end{lstlisting}
+
+\expects Let as if \code{e = static_cast<const byte *>(memchr(b, 0))}, then \code{[b, e]} is a valid range.
+
+\effects Equivalent to \code{path_view_component(b, (size_type)(e - b))}, if \code{memchr} were a \code{constexpr} available function.
+
+\ensures \code{formatting() == format::binary_format} and \code{zero_termination() == zero_terminated}.
+
+\complexity \code{O(e - b)}.\\
+
+\color{black}
+
+\note{If the consumer of path view components interprets byte input as a fixed length binary key, then it will pass the byte pointer as-is to the relevant system call. If the byte range has an incorrect length for the destination, the behaviour is unspecified.}
+
+\color{darkgreen}
+
+\begin{lstlisting}[language=cpp]
+    template<class CharT>
+    constexpr path_view_component(basic_string_view<CharT> b, enum zero_termination zt,
+                                  format fmt = path::binary_format) noexcept;
+\end{lstlisting}
+\constraints \code{CharT} is any one of: \code{char}, \code{wchar_t}, \code{char8_t}, \code{char16_t}; if \code{zt} is \code{zero_terminated}, then \code{b.data()[b.size()] == CharT(0)}.
+
+\effects Equivalent to \code{path_view_component(b.data(), b.size(), zt, fmt)}.
+
+\ensures \code{formatting() == fmt} and \code{zero_termination() == zt}.\\
+
+\begin{lstlisting}[language=cpp]
+    constexpr path_view_component(span<const byte> b, enum zero_termination zt) noexcept;
+\end{lstlisting}
+\constraints If \code{zt} is \code{zero_terminated}, then \code{b.data()[b.size()] == byte(0)}.
+
+\effects Equivalent to \code{path_view_component(b.data(), b.size(), zt)}.
+
+\ensures \code{formatting() == format::binary_format} and \code{zero_termination() == zt}.\\
+
+
+\begin{lstlisting}[language=cpp]
+    template<class It, class End>
+    constexpr path_view_component(It b, End e, enum zero_termination zt,
+                                  format fmt = path::binary_format) noexcept;
+\end{lstlisting}
+\constraints \begin{enumerate}
+    \item \code{It} satisfies \code{contiguous_iterator}.
+    \item \code{End} satisfies \code{sized_sentinel_for<It>}.
+    \item \code{iter_value_t<It>} is any one of: \code{char}, \code{wchar_t}, \code{char8_t}, \code{char16_t}.
+    \item \code{is_convertible_v<End, size_type>} is false.
+    \item If \code{zt} is \code{zero_terminated}, then \code{*e == X(0)}.
+\end{enumerate}
+\expects \begin{enumerate}
+    \item If \code{zt} is \code{zero_terminated}, then \code{[b, e]} is a valid range, otherwise \code{[b, e)} is a valid range.
+    \item \code{It} models \code{contiguous_iterator}.
+    \item \code{End} models \code{sized_sentinel_for<It>}.
+\end{enumerate}
+
+\effects Equivalent to \code{path_view_component(to_address(begin), end - begin, zt, fmt)}.
+
+\ensures \code{formatting() == fmt} and \code{zero_termination() == zt}.\\
+
+\begin{lstlisting}[language=cpp]
+    template<class It, class End>
+    constexpr path_view_component(It b, End e, enum zero_termination zt) noexcept;
+\end{lstlisting}
+\constraints \begin{enumerate}
+    \item \code{It} satisfies \code{contiguous_iterator}.
+    \item \code{End} satisfies \code{sized_sentinel_for<It>}.
+    \item \code{iter_value_t<It>} is \code{byte}.
+    \item \code{is_convertible_v<End, size_type>} is false.
+    \item If \code{zt} is \code{zero_terminated}, then \code{*e == byte(0)}.
+\end{enumerate}
+\expects \begin{enumerate}
+    \item If \code{zt} is \code{zero_terminated}, then \code{[b, e]} is a valid range, otherwise \code{[b, e)} is a valid range.
+    \item \code{It} models \code{contiguous_iterator}.
+    \item \code{End} models \code{sized_sentinel_for<It>}.
+\end{enumerate}
+
+\effects Equivalent to \code{path_view_component(to_address(begin), end - begin, zt)}.
+
+\ensures \code{formatting() == format::binary_format} and \code{zero_termination() == zt}.\\
+
+\subsubsection*{Modifiers [fs.path\_view\_component.modifiers]}
+
+\begin{lstlisting}[language=cpp]
+    constexpr void swap(path_view_component& o) noexcept;
+\end{lstlisting}
+
+\effects Exchanges the values of \code{*this} and \code{o}.\\
+
+\subsubsection*{Observers [fs.path\_view\_component.observers]}
+
+\begin{lstlisting}[language=cpp]
+    [[nodiscard]] constexpr bool empty() const noexcept;
+\end{lstlisting}
+
+\returns True if \code{native_size() == 0}.\\
+
+\begin{lstlisting}[language=cpp]
+    constexpr size_type native_size() const noexcept;
+\end{lstlisting}
+
+\returns The number of codepoints, or bytes, with which the path view component was constructed.\\
+
+\begin{lstlisting}[language=cpp]
+    constexpr format formatting() const noexcept;
+\end{lstlisting}
+
+\returns The formatting with which the path view component was constructed.\\
+
+\begin{lstlisting}[language=cpp]
+    constexpr bool has_zero_termination() const noexcept;
+\end{lstlisting}
+
+\returns True if the path view component was constructed with zero termination.\\
+
+\begin{lstlisting}[language=cpp]
+    constexpr enum zero_termination zero_termination() const noexcept;
+\end{lstlisting}
+
+\returns The zero termination with which the path view component was constructed.\\
+
+\begin{lstlisting}[language=cpp]
+    constexpr bool has_stem() const noexcept;
+\end{lstlisting}
+
+\returns True if \code{stem()} return a non-empty path view component.
+
+\complexity \code{O(native_size())}.\\
+
+\begin{lstlisting}[language=cpp]
+    constexpr bool has_extension() const noexcept;
+\end{lstlisting}
+
+\returns True if \code{extension()} return a non-empty path view component.
+
+\complexity \code{O(native_size())}.\\
+
+\begin{lstlisting}[language=cpp]
+    constexpr path_view_component stem() const noexcept;
+\end{lstlisting}
+
+\returns Let \code{s} refer to one element of backing data after the last separator element \emph{sep} as interpreted by \code{formatting()} in the path view component, otherwise then to the first element in the path view component; let \code{e} refer to the last period within \code{[s + 1, native_size())} unless \code{[s, native_size())} is `..', otherwise then to one past the last element in the path view component; returns the portion of the path view component matching \code{[s, e)}.
+
+\complexity \code{O(native_size())}.\\
+
+\color{black}
+
+\note{The current normative wording for \code{path::stem()} is unclear how to handle \code{"/foo/bar/.."}, so I chose for \code{stem()} to return `..' and \code{extension()} to return `' in this circumstance.}
+
+\color{darkgreen}
+
+\begin{lstlisting}[language=cpp]
+    constexpr path_view_component extension() const noexcept;
+\end{lstlisting}
+
+\returns Let \code{s} refer to one element of backing data after the last separator element \emph{sep} as interpreted by \code{formatting()} in the path view component, otherwise then to the first element in the path view component; let \code{e} refer to the last period within \code{[s + 1, native_size())} unless \code{[s, native_size())} is `..', otherwise then to one past the last element in the path view component; returns the portion of the path view component matching \code{[e, native_size())}.
+
+\complexity \code{O(native_size())}.\\
+
+\begin{lstlisting}[language=cpp]
+    template<class T = typename path::value_type,
+             class Allocator = default_rendered_path_allocator<T>,
+             size_type InternalBufferSize = default_internal_buffer_size>
+    constexpr int compare(path_view_component p) const;
+\end{lstlisting}
+
+\constraints \code{T} is any one of: \code{char}, \code{wchar_t}, \code{char8_t}, \code{char16_t}, \code{byte}; \code{Allocator} is either its defaulted internal tag type, or meets \emph{Cpp17Allocator} requirements.
+
+\effects
+\begin{itemize}
+    \item If \code{T} is \code{byte}, the comparison of the two backing data ranges is implemented as a byte comparison equivalent to \code{memcmp}.
+    \item Otherwise the comparison is equivalent to:
+    \begin{lstlisting}[language=cpp]
+    path_view_component::rendered_path<T, Allocator, InternalBufferSize> zpath1(*this), zpath2(p);
+    path path1(zpath1.buffer, zpath1.length, this->formatting()), path2(zpath2.buffer, zpath2.length, p.formatting());
+    path1.compare(path2);
+    \end{lstlisting}
+\end{itemize}
+
+\complexity \code{O(native_size())}.\\
+
+\color{black}
+
+\note{The above wording is intended to retain an important source of optimisation whereby implementations do not actually have to construct a \code{path_view_component::rendered_path} nor a \code{path} from those buffers e.g. if the backing data for both \code{*this} and \code{p} are of the same encoding, the two backing data ranges can be compared directly (ignoring multiple path separators etc), if and only if the same comparison result would occur if both buffers were converted to \code{path} and those paths compared.}
+
+\color{darkgreen}
+
+\begin{lstlisting}[language=cpp]
+    template<class T = typename path::value_type,
+             class Allocator = default_rendered_path_allocator<T>,
+             size_type InternalBufferSize = default_internal_buffer_size>
+    constexpr int compare(path_view_component p, const locale& loc) const;
+\end{lstlisting}
+
+\constraints \code{T} is any one of: \code{char}, \code{wchar_t}, \code{char8_t}, \code{char16_t}, \code{byte}; \code{Allocator} is either its defaulted internal tag type, or meets \emph{Cpp17Allocator} requirements.
+
+\effects Equivalent to \code{compare<T, Allocator, InternalBufferSize>} but where the implied \code{path_view_component::rendered_path} is constructed with an additional \code{loc} argument.\\
+
+
+\subsection*{Class \code{path_view_component::rendered_path} [fs.path\_view\_component.rendered\_path]}
+
+\begin{lstlisting}[language=cpp]
+namespace std::filesystem {
+  template<enum path_view_component::zero_termination ZeroTermination,
+           class T = typename path::value_type,
+           class Allocator = path_view_component::default_rendered_path_allocator<T>,
+           size_type InternalBufferSize = path_view_component::default_internal_buffer_size>
+  class path_view_component::rendered_path {
+  public:
+    using value_type = const T;
+    using pointer = const T*;
+    using const_pointer = const T*;
+    using reference = const T&;
+    using const_reference = const T&;
+    using iterator = span<value_type>::iterator;
+    using const_iterator = span<value_type>::const_iterator;
+    using reverse_iterator = span<value_type>::reverse_iterator;
+    using const_reverse_iterator = span<value_type>::const_reverse_iterator;
+    using size_type = span<value_type>::size_type;
+    using difference_type = span<value_type>::difference_type;
+    using allocator_type = Allocator; /* not present if default_rendered_path_allocator tag type was used */
+
+  public:
+    // constructors and destructor
+    rendered_path() noexcept;
+    ~rendered_path();
+    
+    constexpr rendered_path(path_view_component v,
+                            const locale& loc,
+                            Allocator allocate = Allocator());
+    
+    constexpr rendered_path(path_view_component v, Allocator allocate = Allocator());
+
+    rendered_path(const rendered_path&) = delete;
+    rendered_path(rendered_path&& o) noexcept;
+
+    // assignment
+    rendered_path &operator=(const rendered_path&) = delete;
+    rendered_path &operator=(rendered_path&&) noexcept;
+    
+    // iteration
+    constexpr iterator begin() noexcept;
+    constexpr const_iterator begin() const noexcept;
+    constexpr const_iterator cbegin() const noexcept;
+    constexpr iterator end() noexcept;
+    constexpr const_iterator end() const noexcept;
+    constexpr const_iterator cend() const noexcept;
+    constexpr reverse_iterator rbegin() noexcept;
+    constexpr const_reverse_iterator rbegin() const noexcept;
+    constexpr const_reverse_iterator crbegin() const noexcept;
+    constexpr reverse_iterator rend() noexcept;
+    constexpr const_reverse_iterator rend() const noexcept;
+    constexpr const_reverse_iterator crend() const noexcept;
+
+    // access
+    constexpr reference operator[](size_type idx) noexcept;
+    constexpr const_reference operator[](size_type idx) const noexcept;
+    constexpr reference at(size_type idx);
+    constexpr const_reference at(size_type idx) const;
+    constexpr reference front() noexcept;
+    constexpr const_reference front() const noexcept;
+    constexpr reference back() noexcept;
+    constexpr const_reference back() const noexcept;
+    constexpr pointer data() noexcept;
+    constexpr const_pointer data() noexcept;
+    constexpr size_type size() const noexcept;
+    constexpr size_type length() const noexcept;
+    constexpr size_type max_size() const noexcept;
+    [[nodiscard]] constexpr bool empty() noexcept;
+    
+    constexpr allocator_type get_allocator() const noexcept;  /* not present if default_rendered_path_allocator tag type was used */
+    
+    constexpr size_t capacity() const noexcept;
+    constexpr bool references_source() const noexcept;
+    
+    constexpr span<const value_type> as_span() const noexcept;
+    
+    constexpr const_pointer c_str() const noexcept;   // available only if zero_terminated and non-byte backing
+
+  private:
+    span<const value_type> _ref;                 // exposition only
+    size_t bytes_to_delete_{0};                  // exposition only
+    Allocator allocator_;                        // exposition only
+    value_type buffer_[internal_buffer_size]{};  // exposition only
+    
+    /* To be removed before LWG:
+    
+    Note that if the internal buffer is the final item in the structure,
+    the major C++ compilers shall, if they can statically prove that
+    the buffer will never be used, entirely eliminate it from runtime
+    codegen. This can happen quite frequently during aggressive
+    inlining if the backing data is a string literal.
+    */
+  };
+}
+\end{lstlisting}
+
+\constraints \code{T} is any one of: \code{char}, \code{wchar_t}, \code{char8_t}, \code{char16_t}, \code{byte}; \code{Allocator} is either its defaulted internal tag type, or meets \emph{Cpp17Allocator} requirements.
+
+Class \code{path_view_component::rendered_path} is a mechanism for rendering a path view component's backing data into a buffer, optionally reencoded, optionally zero terminated. It is expected to be, in most cases, much more efficient than constructing a \code{path} from visiting the backing data, however unlike \code{path} it can also target non-\code{path::value_type} consumers of filesystem paths e.g. other programming languages or archiving libraries.
+
+\color{black}
+
+\note{Objects of class \code{path_view_component::rendered_path} are typically expected to be instantiated upon the stack immediately preceding a system call, and destroyed shortly after return from a system call. The large default storage requirements of \code{rendered_path} therefore does not introduce the usual concerns, though we disable the copy constructor to prevent unintentional inefficiency. The move constructor remains available however, as in empirical usage it was found occasionally useful to pre-render an array of path views into an array of their syscall-ready forms e.g. if the path views' backing data would be about to disappear. Being able to store \code{rendered_path} inside STL containers is useful in this situation.}
+
+\color{darkgreen}
+
+It is important to note that the consumer of path view components determines the interpretation of path view components, not class \code{path_view_component::rendered_path} nor \code{path}. For example, if the backing data is unencoded bytes, a consuming implementation might choose to use a binary key API to open filesystem content instead of a path based API whose input comes from \code{path_view_component::rendered_path} or \code{path} i.e. APIs consuming path view components may behave differently if the backing data is in one format, or another.
+
+\color{black}
+
+\note{For example, Microsoft Windows has system APIs which can open a file by binary key specified in the \code{FILE_ID_DESCRIPTOR} structure. Some POSIX implementations support the standard SNIA NVMe key-value API for storage devices. IMPORTANT: If a consuming implementation expects to, in the future, interpret byte backing data differently e.g. it does not support binary key lookup on a filesystem now, but may do so in the future, \textbf{it ought to reject byte backed path view components now} with an appropriate error instead of utilising the \code{rendered_path} byte passthrough described below.}
+
+\color{darkgreen}
+
+After construction, an object of class \code{path_view_component::rendered_path} will have members \code{data()} and \code{size()} set as follows: \code{data()} will point at an optionally zero terminated array of \code{value_type} of length \code{size()}, the count of which excludes any zero termination. Furthermore, if \code{ZeroTermination} is \code{zero_terminated}, \code{c_str()} additionally becomes available.
+
+As an example of usage with POSIX \code{open()}, which consumes a zero-terminated \code{const path::value_type*} i.e. \code{const char *}:
+
+\begin{lstlisting}[language=cpp]
+int open_file(path_view path)
+{
+  /* This function does not support binary key input */
+  if(visit([](auto sv){ return same_as<remove_cvref_t<decltype(sv)>, span<const byte>>; }, path))
+  {
+    errno = EOPNOTSUPP;
+    return -1;
+  }
+  /* On POSIX platforms which treat char as UTF-8, if the
+  input has backing data in char or char8_t, and that
+  backing data is zero terminated, zpath.data() will point
+  into the backing data and no further work is done.
+  Otherwise a reencode or bit copy of the backing data to
+  char will be performed, possibly dynamically allocating a
+  buffer if rendered_path's internal buffer isn't big enough.
+  */
+  auto zpath = path.render_zero_terminated();
+  return ::open(zpath.c_str(), O_RDONLY);
+}
+\end{lstlisting}
+
+\color{black}
+
+\note{Requiring users to always type out the zero termination they require may seem onerous, however defaulting the parameter to zero terminate would lead to accidental memory copies purely and solely just to zero terminate, which eliminates much of the advantage of using path views. It is correct that the \emph{primary} filesystem APIs on the two major platforms both require zero termination, however there are many other uses of paths e.g. with ZIP archive libraries, Java JNI, etc with APIs that take a lengthed path. Many of the secondary filesystem APIs on the two major platforms also use lengthed not zero terminated paths e.g. Microsoft Windows NT kernel API, which if using then memory copies can be completely avoided.}
+
+\color{darkgreen}
+
+~ \\
+
+\subsubsection*{Construction [fs.path\_view\_component.rendered\_path.cons]}
+
+\begin{lstlisting}[language=cpp]
+    ~rendered_path();
+\end{lstlisting}
+
+\effects If during construction a dynamic memory allocation was required, that is released using the \code{Allocator} instance which was supplied during construction, or the internal platform-specific allocator if appropriate.\\
+
+\begin{lstlisting}[language=cpp]
+    constexpr rendered_path(path_view_component v,
+                            const locale& loc,
+                            Allocator allocate = Allocator());
+\end{lstlisting}
+
+\effects
+\begin{itemize}
+    \item If \code{value_type} is \code{byte}, \code{size()} will return \code{v.native_size()}. If \code{zero_termination} is \code{zero_terminated} and \code{v.zero_termination()} is \code{not_zero_terminated}:
+    \begin{itemize}
+        \item If \code{size() < internal_buffer_size - 1}:
+        \begin{itemize}
+            \item \code{data()} returns \code{buffer_}, the bytes of the backing data are copied into \code{buffer_}, and a zero valued byte is appended. 
+        \end{itemize}
+        else:
+        \begin{itemize}
+            \item \code{allocate.allocate(length + 1)} is performed to yield the value returned by \code{data()}, the bytes of the backing data are copied into \code{data()}, and a zero valued byte is appended.
+        \end{itemize}
+    \end{itemize}
+    else:
+    \begin{itemize}
+        \item \code{data()} returns the backing data.
+    \end{itemize}
+    
+    \item If the backing data is \code{byte} and \code{value_type} is not \code{byte}, \code{size()} will return \code{v.native_size() / sizeof(value_type)}. If \code{zero_termination} is \code{zero_terminated}, and either \code{(v.native_size() + v.zero_terminated()) != (size() + 1) * sizeof(value_type)} is true or \code{v.zero_termination()} is \code{not_zero_terminated}:
+    \begin{itemize}
+        \item If \code{size() < internal_buffer_size - 1}:
+        \begin{itemize}
+            \item \code{data()} returns \code{buffer_}, the bytes of the backing data are copied into \code{buffer_}, and a zero valued \code{value_type} is appended. 
+        \end{itemize}
+        else:
+        \begin{itemize}
+            \item \code{allocate.allocate(length + 1)} is performed to yield the value returned by \code{data()}, the bytes of the backing data are copied into \code{data()}, and a zero valued \code{value_type} is appended.
+        \end{itemize}
+    \end{itemize}
+    else:
+    \begin{itemize}
+        \item \code{data()} returns the backing data.
+    \end{itemize}
+
+\color{black}
+
+\note{The \code{(v.native_size() + v.has_zero_termination()) != (size() + 1) * sizeof(value_type)} is to enable passthrough of byte input to \code{wchar_t} output by passing in an uneven sized byte input marked as zero terminated, whereby if the zero terminated byte is added into the input, the total sum of bytes equals exactly the number of bytes which the zero terminated output buffer would occupy. The inferred promise here is that the code which constructed the path view with raw bytes and zero termination has appropriately padded the end of the buffer with the right number of zero bytes to make up a null terminated \code{wchar_t}.}
+
+\color{darkgreen}
+
+    \item If the backing data and \code{value_type} have the same bit-for-bit encoding in the wide sense (e.g. if the narrow system encoding \code{char} is considered to be UTF-8, it is considered the same encoding as \code{char8_t}; similarly if the wide system encoding \code{wchar_t} is considered to be UTF-16, it is considered the same encoding as \code{char16_t}, and so on), \code{size()} will return \code{v.native_size()}. If \code{zero_termination} is \code{zero_terminated} and \code{v.zero_termination()} is \code{not_zero_terminated}, or depending on the value of \code{v.formatting()} the backing data contains any generic path separators and the generic path separator is not the native path separator:
+    \begin{itemize}
+        \item If \code{size() < internal_buffer_size - 1}:
+        \begin{itemize}
+            \item \code{data()} returns \code{buffer_}, the code points of the backing data are copied into \code{buffer_}, replacing any generic path separators with native path separators if \code{v.formatting()} allows that, and a zero valued \code{value_type} is appended. 
+        \end{itemize}
+        else:
+        \begin{itemize}
+            \item \code{allocate.allocate(length + 1)} is performed to yield the value returned by \code{data()}, the code points of the backing data are copied into \code{data()}, replacing any generic path separators with native path separators if \code{v.formatting()} allows that, and a zero valued \code{value_type} is appended.
+        \end{itemize}
+    \end{itemize}
+    else:
+    \begin{itemize}
+        \item \code{data()} returns the backing data.
+    \end{itemize}
+
+    \item Otherwise, a reencoding of the backing data into \code{value_type} shall be performed using \code{loc}, replacing any generic path separators with native path separators if \code{v.formatting()} allows that, zero \code{value_type} terminating the reencoded buffer if \code{zero_termination} is \code{zero_terminated}. \code{data()} shall return that reencoded path, and \code{size()} shall be the number of elements output, excluding any zero termination appended. It is defined by \code{loc} what occurs if the backing data contains invalid codepoints for its declared encoding.
+
+\color{black}
+
+\note{It should be noted that it is not always possible to directly use \code{loc} for a reencode between certain combinations of source and destination encoding on some platforms. For example, on Microsoft Windows, because the narrow system encoding is runtime configurable and therefore a system API is always invoked to perform a reencode to the narrow system encoding, one cannot use \code{loc} directly. Rather, one uses \code{loc} to reencode from the source encoding into \code{wchar_t}, then invoke the Microsoft Windows system API to reencode from \code{wchar_t} to the narrow system encoding i.e. there are two reencode passes here. Reading the current normative wording for how \code{path} uses \code{loc}, this appears to be a valid interpretation of how \code{path} already works, though I do note \code{path}'s wording in this area is somewhat ambiguous currently.
+
+Another thing to note is that if the user does not use the \code{loc} consuming overload, we need to allow implementations to use any as-if equivalent reencoding mechanism to \code{std::locale()}. This is because some platforms implement system APIs for reencoding strings which have far better performance than standard library facilities, and we ought to not prevent implementations making use of those. The current \code{path} normative wording also appears to allow this optimisation.}
+
+\color{darkgreen}
+
+\end{itemize}
+
+\begin{lstlisting}[language=cpp]
+    constexpr rendered_path(path_view_component v, Allocator allocate = Allocator());
+\end{lstlisting}
+
+\effects The member functions \code{data()} and \code{size()} return values as for the preceding overload, using implementation defined mechanisms for performing reencodings if that is necessary. Implementations are required to throw an exception if the backing data is \code{char8_t} or \code{char16_t} and the backing data contains an invalid codepoint for UTF-8 or UTF-16 respectively.\\
+
+\subsection*{Observers [fs.rendered\_path.obs]}
+
+\color{black}
+
+\note{The vast majority of the observers replicate those of \code{span} and so are not described further here. The reason \code{span} was chosen over \code{basic_string_view} is because the rendered path could be binary.}
+
+\color{darkgreen}
+
+\begin{lstlisting}[language=cpp]
+    constexpr allocator_type get_allocator() const noexcept;  /* not present if default_rendered_path_allocator tag type was used */
+\end{lstlisting}
+
+\constraints \code{Allocator} meets \emph{Cpp17Allocator} requirements.
+
+\returns The allocator associated with the rendered path.\\
+
+
+\begin{lstlisting}[language=cpp]
+    constexpr size_t capacity() const noexcept;
+\end{lstlisting}
+
+\returns The maximum number of rendered items which could be stored in this rendered path instance without causing a new dynamic memory allocation.\\
+
+
+\begin{lstlisting}[language=cpp]
+    constexpr bool references_source() const noexcept;
+\end{lstlisting}
+
+\returns True if this rendered path references backing data elsewhere.\\
+
+
+\begin{lstlisting}[language=cpp]
+    constexpr span<const value_type> as_span() const noexcept;
+\end{lstlisting}
+
+\effects Returns a span representing the rendered path.\\
+
+
+\begin{lstlisting}[language=cpp]
+    constexpr const_pointer c_str() const noexcept;   // available only if zero_terminated and non-byte backing
+\end{lstlisting}
+
+\constraints \code{T} is any one of: \code{char}, \code{wchar_t}, \code{char8_t}, \code{char16_t}; \code{ZeroTermination} is \code{zero_termination::zero_terminated}.
+
+\returns The same value as \code{data()}.\\
+
+\subsection*{Non-member comparison functions [fs.path\_view\_component.comparison]}
+
+\begin{lstlisting}[language=cpp]
+  inline constexpr bool operator==(path_view_component a, path_view_component b) noexcept;
+  inline constexpr bool operator<(path_view_component a, path_view_component b) noexcept;
+  inline constexpr auto operator<=>(path_view_component a, path_view_component b) = default;
+\end{lstlisting}
+
+\effects If the native sizes are unequal, the path view components are considered unequal. If the backing bytes are of different encoding, the path view components are considered unequal. Otherwise a comparison equivalent to \code{memcmp} is used to compare the backing bytes of both path view components for equality and ordering.
+\color{black}
+
+\note{This is intentionally a `shallow' equality comparison intended for use in maps etc, it doesn't do expensive \code{compare()}.}
+
+\color{darkgreen}
+
+\begin{lstlisting}[language=cpp]
+  template<class CharT>
+  inline constexpr bool operator==(path_view_component, const CharT*) = delete;
+  template<class CharT>
+  inline constexpr bool operator==(path_view_component, basic_string_view<CharT>) = delete;
+  inline constexpr bool operator==(path_view_component, const byte*) = delete;
+  inline constexpr bool operator==(path_view_component, span<const byte>) = delete;
+
+  template<class CharT>
+  inline constexpr bool operator<(path_view_component, const CharT*) = delete;
+  template<class CharT>
+  inline constexpr bool operator<(path_view_component, basic_string_view<CharT>) = delete;
+  inline constexpr bool operator<(path_view_component, const byte*) = delete;
+  inline constexpr bool operator<(path_view_component, span<const byte>) = delete;
+
+  template<class CharT>
+  inline constexpr auto operator<=>(path_view_component, const CharT*) = delete;
+  template<class CharT>
+  inline constexpr auto operator<=>(path_view_component, basic_string_view<CharT>) = delete;
+  inline constexpr auto operator<=>(path_view_component, const byte*) = delete;
+  inline constexpr auto operator<=>(path_view_component, span<const byte>) = delete;
+
+  template<class CharT>
+  inline constexpr bool operator==(const CharT*, path_view_component) = delete;
+  template<class CharT>
+  inline constexpr bool operator==(basic_string_view<CharT>, path_view_component) = delete;
+  inline constexpr bool operator==(const byte*, path_view_component) = delete;
+  inline constexpr bool operator==(span<const byte>, path_view_component) = delete;
+
+  template<class CharT>
+  inline constexpr bool operator<(const CharT*, path_view_component) = delete;
+  template<class CharT>
+  inline constexpr bool operator<(basic_string_view<CharT>, path_view_component) = delete;
+  inline constexpr bool operator<(const byte*, path_view_component) = delete;
+  inline constexpr bool operator<(span<const byte>, path_view_component) = delete;
+
+  template<class CharT>
+  inline constexpr auto operator<=>(const CharT*, path_view_component) = delete;
+  template<class CharT>
+  inline constexpr auto operator<=>(basic_string_view<CharT>, path_view_component) = delete;
+  inline constexpr auto operator<=>(const byte*, path_view_component) = delete;
+  inline constexpr auto operator<=>(span<const byte>, path_view_component) = delete;
+\end{lstlisting}
+
+\effects Comparing for equality or inequality string literals, string views, byte literals or byte views, against a path view component is deleted. A diagnostic explaining that \code{.compare()} or \code{visit()} ought to be used instead is recommended.
+
+\color{black}
+
+\note{Experience of how people use path views in the real world found that much unintended performance loss derives from people comparing path views to string literals, because of the potential extremely expensive (relatively speaking) reencode and dynamic memory allocation per comparison due to the implicit conversion. Even this paper's author, who you would think would really know better, got stung by this on more than one occasion. So the decision was taken to prevent such constructs compiling at all, which is very unfortunate, but it does force the user to write much better code e.g. \code{visit()} with an overload set for \code{operator()(basic_string_view<CharT>)} for each possible backing data encoding.}
+
+\color{darkgreen}
+
+\subsection*{Non-member functions [fs.path\_view\_component.comparison]}
+
+\begin{lstlisting}[language=cpp]
+  size_t hash_value(path_view_component v) noexcept;
+\end{lstlisting}
+
+\returns A hash value for the path \code{v}. If for two path view components, \code{p1 == p2} then \code{hash_value(p1) == hash_value(p2)}.\\
+
+\begin{lstlisting}[language=cpp]
+  template<class F>
+  inline constexpr auto visit(F &&f, path_view_component v);
+\end{lstlisting}
+
+\constraints All of these are true:\begin{itemize}
+    \item \code{invocable<F, basic_string_view<char>>}.
+    \item \code{invocable<F, basic_string_view<wchar_t>>}.
+    \item \code{invocable<F, basic_string_view<char8_t>>}.
+    \item \code{invocable<F, basic_string_view<char16_t>>}.
+    \item \code{invocable<F, span<const byte>>}.
+\end{itemize}
+
+\effects The callable \code{f} is invoked with a \code{basic_string_view<CharT>} if the backing data has a character encoding, otherwise it is invoked with a \code{span<const byte>} with the backing bytes.
+
+\returns Whatever \code{F} returns.\\
+
+\begin{lstlisting}[language=cpp]
+  template<class charT, class traits>
+  basic_ostream<charT, traits>& operator<<(basic_ostream<charT, traits>& s, path_view_component v);
+\end{lstlisting}
+
+\effects Equivalent to:\begin{lstlisting}[language=cpp]
+template<class charT, class traits>
+basic_ostream<charT, traits>& operator<<(basic_ostream<charT, traits>& s, path_view_component v)
+{
+  return visit([&s, &v](auto sv) -> basic_ostream<charT, traits>& {
+    using input_type = remove_cvref_t<decltype(sv)>;
+    using output_type = basic_ostream<charT, traits>;
+
+    if constexpr(same_as<input_type, span<const byte>>)
+    {
+      /* Implementation defined. Microsoft Windows requires the following
+      textualisation for FILE_ID_DESCRIPTOR.ObjectId keys which are guids:
+      
+      "{7ecf65a0-4b78-5f9b-e77c-8770091c0100}"
+      
+      This is a valid filename in NTFS with special semantics:
+      OpenFileById() is used instead if you pass it into
+      CreateFile().
+      
+      Otherwise some textual representation which is not
+      a possible valid textual path is suggested.
+      */
+    }
+    else
+    {
+      // Possibly reencode to ostream's character type
+      path_view_component::rendered_path<typename output_type::char_type> zbuff(v, path_view_component::not_zero_terminated);
+      return quoted(s.write(zbuff.buffer, zbuff.length));
+    }
+  }, v);
+}
+\end{lstlisting}
+
+\returns \code{s}.\\
+
+\subsection*{Class \code{path_view} [fs.path\_view]}
+
+An object of class \code{path_view} is a \code{path_view_component} which has additional functionality:
+\begin{itemize}
+    \item It is an iterable sequence of \code{path_view_component} returning subsets of the path view.
+    \item It has additional member functions implementing corresponding functionality from \code{path}.
+    \item Constructing a \code{path_view_component} for a piece of backing data defaults to \code{binary_format} interpretation of path separators, whereas constructing a \code{path_view} for a piece of backing data defaults to \code{auto_format} interpretation of path separators. \code{path_view_component}'s yielded from iteration of \code{path_view} have \code{binary_format} interpretation of path separators.
+\end{itemize}
+
+\code{path_view} is trivially copyable.
+
+The complexity of \code{path_view} member functions is O(1) unless otherwise specified.
+
+\begin{lstlisting}[language=cpp]
+namespace std::filesystem {
+  class path_view : public path_view_component {
+  public:
+    using const_iterator = /* implementation defined */;
+    using iterator = /* implementation defined */;
+    using reverse_iterator = /* implementation defined */;
+    using const_reverse_iterator = /* implementation defined */;
+    using difference_type = /* implementation defined */;
+    
+  public:
+    // Constructors and destructors
+    constexpr path_view() noexcept;
+    
+    path_view(path_view_component p, format fmt = path::auto_format) noexcept;
+
+    path_view(const path& p) noexcept;
+    template<class CharT>
+    constexpr path_view(const basic_string<CharT>,
+                        format fmt = path::auto_format) noexcept;
+                        
+    template<class CharT>
+    constexpr path_view(const CharT* b, size_type l, enum zero_termination zt,
+                        format fmt = path::auto_format) noexcept;
+    constexpr path_view(const byte* b, size_type l, enum zero_termination zt) noexcept;
+
+    template<class CharT>
+    constexpr path_view(const CharT* b, format fmt = path::auto_format) noexcept;
+    constexpr path_view(const byte* b) noexcept;
+
+    template<class CharT>
+    constexpr path_view(basic_string_view<CharT> b, enum zero_termination zt,
+                        format fmt = path::auto_format) noexcept;
+    constexpr path_view(span<const byte> b, enum zero_termination zt) noexcept;
+
+    template<class It, class End>
+    constexpr path_view(It b, End e, enum zero_termination zt,
+                        format fmt = path::auto_format) noexcept;
+    template<class It, class End>
+    constexpr path_view(It b, End e, enum zero_termination zt) noexcept;
+
+    constexpr path_view(const path_view&) = default;
+    constexpr path_view(path_view&&) = default;
+    constexpr ~path_view() = default;
+
+    // Assignments
+    constexpr path_view &operator=(const path_view&) = default;
+    constexpr path_view &operator=(path_view&&) = default;
+    
+    // Modifiers
+    constexpr void swap(path_view& o) noexcept;
+    
+    // Query
+    constexpr bool has_root_name() const noexcept;
+    constexpr bool has_root_directory() const noexcept;
+    constexpr bool has_root_path() const noexcept;
+    constexpr bool has_relative_path() const noexcept;
+    constexpr bool has_parent_path() const noexcept;
+    constexpr bool has_filename() const noexcept;
+    constexpr bool is_absolute() const noexcept;
+    constexpr bool is_relative() const noexcept;
+    
+    constexpr path_view root_name() const noexcept;
+    constexpr path_view root_directory() const noexcept;
+    constexpr path_view root_path() const noexcept;
+    constexpr path_view relative_path() const noexcept;
+    constexpr path_view parent_path() const noexcept;
+    constexpr path_view_component filename() const noexcept;
+    constexpr path_view remove_filename() const noexcept;
+
+    // Iteration
+    constexpr const_iterator cbegin() const noexcept;
+    constexpr const_iterator begin() const noexcept;
+    constexpr iterator begin() noexcept;
+    constexpr const_iterator cend() const noexcept;
+    constexpr const_iterator end() const noexcept;
+    constexpr iterator end() noexcept;
+
+    // Comparison
+    template<class T = typename path::value_type,
+             class Allocator = default_rendered_path_allocator<T>,
+             size_type InternalBufferSize = default_internal_buffer_size>
+    constexpr int compare(path_view p) const;
+    template<class T = typename path::value_type,
+             class Allocator = default_rendered_path_allocator<T>,
+             size_type InternalBufferSize = default_internal_buffer_size>
+    constexpr int compare(path_view p, const locale &loc) const;
+
+    // Conversion
+    template<class T = typename path::value_type,
+             class Allocator = default_rendered_path_allocator<T>,
+             size_type InternalBufferSize = default_internal_buffer_size>
+    class rendered_path;
+  };
+}
+\end{lstlisting}
+
+Path view iterators iterate over the elements of the path view as separated by the generic or native path separator, depending on the value of \code{formatting()}.
+
+A \code{path_view::iterator} is a constant iterator meeting all the requirements of a bidirectional iterator. Its \code{value_type} is \code{path_view_component}.
+
+Any operation that invalidates a pointer within the range of the backing data of the path view invalidates pointers, iterators and references returned by \code{path_view}.
+
+For the elements of the pathname, the forward traversal order is as follows:
+
+\begin{itemize}
+    \item The \emph{root-name} element, if present.
+    \item The \emph{root-directory} element, if present.
+    \item Each successive \emph{filename} element, if present.
+    \item An empty element, if a trailing non-root \emph{directory-separator} is present.
+\end{itemize}
+The backward traversal order is the reverse of forward traversal. The iteration of any path view is required to be identical to the iteration of any path, for the same input path.
+
+\subsubsection*{Construction and assignment [fs.path\_view.cons]}
+
+\color{black}
+
+\note{Apart from the default value for \code{format}, the path view constructors and assignment are identical to the path view component constructors, and are not repeated here for brevity.}
+
+\color{darkgreen}
+
+\subsubsection*{Observers [fs.path\_view.observers]}
+
+\begin{lstlisting}[language=cpp]
+    constexpr bool has_root_name() const noexcept;
+\end{lstlisting}
+
+\returns True if \code{root_name()} returns a non-empty path view.
+
+\complexity \code{O(native_size())}.\\
+
+\begin{lstlisting}[language=cpp]
+    constexpr bool has_root_directory() const noexcept;
+\end{lstlisting}
+
+\returns True if \code{root_directory()} returns a non-empty path view.
+
+\complexity \code{O(native_size())}.\\
+
+\begin{lstlisting}[language=cpp]
+    constexpr bool has_root_path() const noexcept;
+\end{lstlisting}
+
+\returns True if \code{root_path()} returns a non-empty path view.
+
+\complexity \code{O(native_size())}.\\
+
+\begin{lstlisting}[language=cpp]
+    constexpr bool has_relative_path() const noexcept;
+\end{lstlisting}
+
+\returns True if \code{relative_path()} returns a non-empty path view.
+
+\complexity \code{O(native_size())}.\\
+
+\begin{lstlisting}[language=cpp]
+    constexpr bool has_parent_path() const noexcept;
+\end{lstlisting}
+
+\returns True if \code{parent_path()} returns a non-empty path view.
+
+\complexity \code{O(native_size())}.\\
+
+\begin{lstlisting}[language=cpp]
+    constexpr bool has_filename() const noexcept;
+\end{lstlisting}
+
+\returns True if \code{filename()} returns a non-empty path view component.
+
+\complexity \code{O(native_size())}.\\
+
+\begin{lstlisting}[language=cpp]
+    constexpr bool is_absolute() const noexcept;
+\end{lstlisting}
+
+\returns True if the path view contains an absolute path after interpretation by \code{formatting()}.\\
+
+\begin{lstlisting}[language=cpp]
+    constexpr bool is_relative() const noexcept;
+\end{lstlisting}
+
+\returns True if \code{is_absolute()} is false.\\
+
+\begin{lstlisting}[language=cpp]
+    constexpr path_view root_name() const noexcept;
+\end{lstlisting}
+
+\returns A path view referring to the subset of this path view if it contains \emph{root-name}, otherwise an empty path view.
+
+\complexity \code{O(native_size())}.\\
+
+\begin{lstlisting}[language=cpp]
+    constexpr path_view root_directory() const noexcept;
+\end{lstlisting}
+
+\returns A path view referring to the subset of this path view if it contains \emph{root-directory}, otherwise an empty path view.
+
+\complexity \code{O(native_size())}.\\
+
+\begin{lstlisting}[language=cpp]
+    constexpr path_view root_path() const noexcept;
+\end{lstlisting}
+
+\returns A path view referring to the subset of this path view if it contains \emph{root-name sep root-directory} where \emph{sep} is interpreted according to \code{formatting()}.
+
+\complexity \code{O(native_size())}.\\
+
+\begin{lstlisting}[language=cpp]
+    constexpr path_view relative_path() const noexcept;
+\end{lstlisting}
+
+\returns A path view referring to the subset of this view from the first filename after \code{root_path()} until the end of the view, which may be an empty view.
+
+\complexity \code{O(native_size())}.\\
+
+\begin{lstlisting}[language=cpp]
+    constexpr path_view parent_path() const noexcept;
+\end{lstlisting}
+
+\returns \code{*this} if \code{has_relative_path()} is false, otherwise a path view referring to the subset of this view from the beginning until the last \emph{sep} exclusive, where \emph{sep} is interpreted according to \code{formatting()}.
+
+\complexity \code{O(native_size())}.\\
+
+\begin{lstlisting}[language=cpp]
+    constexpr path_view_component filename() const noexcept;
+\end{lstlisting}
+
+\returns \code{*this} if \code{has_relative_path()} is false, otherwise \code{*--end()}.
+
+\complexity \code{O(native_size())}.\\
+
+\begin{lstlisting}[language=cpp]
+    constexpr path_view remove_filename() const noexcept;
+\end{lstlisting}
+
+\returns A path view referring to the subset of this view from the beginning until the last \emph{sep} inclusive, where \emph{sep} is interpreted according to \code{formatting()}.
+
+\complexity \code{O(native_size())}.\\
+
+\begin{lstlisting}[language=cpp]
+    template<class T = typename path::value_type,
+             class Allocator = default_rendered_path_allocator<T>,
+             size_type InternalBufferSize = default_internal_buffer_size>
+    constexpr int compare(path_view p) const;
+    template<class T = typename path::value_type,
+             class Allocator = default_rendered_path_allocator<T>,
+             size_type InternalBufferSize = default_internal_buffer_size>
+    constexpr int compare(path_view p, const locale &loc) const;
+\end{lstlisting}
+
+\returns Each path view is iterated from begin to end, and the path view components are compared. If any of those path view component comparisons return not zero, that value is returned. If the iteration sequence ends earlier for \code{*this}, a negative number is returned; if the iteration sequence ends earlier for the externally supplied path view, a positive number is returned; if both iteration sequences have the same length, and all path component comparisons return zero, zero is returned.
+
+\complexity \code{O(native_size())}.\\
+
+\tsrefp{fs.enum.path.format}{29.12.8.1}{1}
+
+\tsreplace{}{}{+ \code{binary_format} The binary pathname format.}
+
+\color{black}
+
+\section{Acknowledgements}
+
+Thanks to Billy O'Neal for making me rewrite most of my first attempt at this normative wording. Thanks to Jonathan Wakely for provided detailed notes as only the chair of LWG would perceive. Thanks to Corentin and Peter Dimov for additional feedback.
+
+R5 of this paper would not have happened in a timely fashion without my current client MayStreet London Stock Exchange Group permitting me a few work hours to complete the R5 revision. My thanks to them for enabling this paper revision, it has been some years since the last one!
+
+\section{References}
+\let\oldsection=\section
+\renewcommand{\section}[2]{}%
+\begin{thebibliography}{9}
+  \bibitem[P0482]{P0482}
+    Tom Honermann,\\
+    \emph{char8\_t: A type for UTF-8 characters and strings}\\
+    \url{https://wg21.link/P0482}
+  \bibitem[P0882]{P0882}
+    Yonggang Li\newline
+    \emph{User-defined Literals for std::filesystem::path}\newline
+    \url{https://wg21.link/P0882}
+  \bibitem[P1031]{P1031}
+    Douglas, Niall\newline
+    \emph{Low level file i/o library}\newline
+    \url{https://wg21.link/P1031}
+\end{thebibliography}
+\let\section=\oldsection
+
+\end{document}
