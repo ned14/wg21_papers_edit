@@ -112,7 +112,7 @@
 \begin{flushright}
   \begin{tabular}{ll}
   Document \#:&D1030R6\\
-  Date:       &\date{2023-06-15}\\
+  Date:       &\date{2023-06-16}\\
   Project:    &Programming Language C++\\
               &Library Evolution Working Group\\
   Reply-to:   &\author{Niall Douglas}\\
@@ -126,7 +126,11 @@ There are lengthy, `persuasive', arguments about design rationale in R3 (\url{ht
 
 If you wish to use an implementation right now, a highly-conforming reference implementation of the proposed path view can be found at \url{https://github.com/ned14/llfio/blob/master/include/llfio/v2.0/path\_view.hpp}. It has been found to work well on recent editions of GCC, clang and Microsoft Visual Studio, on x86, x64, ARM and AArch64. It has been in production use for several years now.
 
-My apologies for the two years which have elapsed since R4. `Real life' has intervened on my standards paper writing, and it is only due to my current client MayStreet London Stock Exchange Group allowing me a few work hours to work on standards papers that you see this R5 now and not yet more months from now. I hope that normal service will resume in 2023. I will not be at the upcoming Kona meeting, but I currently expect to be at the New York meeting in early 2023.
+Draft R6 of this paper was written in the bar whilst at the Varna WG21 meeting
+for presentation the following day.
+
+My two cocreators were Robert Leahy and Elias Kosunen, without whom this
+R6 would not have happened.
 
 \tableofcontents
 
@@ -167,7 +171,7 @@ My apologies for the two years which have elapsed since R4. `Real life' has inte
     \item A number of convenience renderers of path views to a destination format are provided:
     \begin{itemize}
         \item \code{filesystem::path}'s constructors can accept all backing data encodings except unencoded raw bytes\footnote{It would be preferable if paths could also represent unencoded raw bytes, but they would need a completely different design, and it could not be binary compatible with existing path implementations.}, and we provide convenience path view accepting constructor overloads which \code{visit()} the backing data and construct a path from that. These additional constructors on \code{path} are \code{explicit} to prevent hidden performance impact surprises.
-        \item \code{path_view.render()} will render a path view to a destination encoding and zero termination using an internal buffer to avoid dynamic memory allocation. See detail below.
+        \item \code{path_view.render_null_terminated()} and  \code{path_view.render_unterminated()} will render a path view to a destination encoding and null termination using an internal buffer to avoid dynamic memory allocation. See detail below.
     \end{itemize}
     \item \code{path_view} inherits publicly from \code{path_view_component}, and contains no additional member data. \code{path_view} can be implicitly constructed from \code{path_view_component}. Thus both types are implicitly convertible from and into one another. Note however that the formatting setting is propagated unchanged during conversion, which whilst not ideal, is considered to be the least worst of the choices available.
     \item Finally, two extra free function overloads are added for \code{path} which fix performance issues and make path more consistent with the rest of the standard library.
@@ -176,7 +180,7 @@ My apologies for the two years which have elapsed since R4. `Real life' has inte
 \subsection{\code{path_view::rendered_path}}
 
 \begin{itemize}
-    \item \code{path_view.render()} returning a \code{path_view::rendered_path} is expected to be the most commonly used mechanism in newly written code for rendering a path view ready for consumption by a platform syscall, or C function accepting a zero terminated codepoint array. If the user supplies backing data in a compatible encoding to the destination encoding, reencoding can be avoided. If the user supplies backing data which is zero terminated, or the destination does not require zero termination according to the parameters supplied to \code{render()}, memory copying can be avoided. For the vast majority of C++ code on POSIX platforms when targeting the filesystem, reencoding is always avoided and memory copying is usually avoided due to C++ source code string literals having a compatible encoding with filesystem paths.
+    \item \code{render_null_terminated()} and  \code{render_unterminated()} returning a \code{path_view::rendered_path} is expected to be the most commonly used mechanism in newly written code for rendering a path view ready for consumption by a platform syscall, or C function accepting a zero terminated codepoint array. If the user supplies backing data in a compatible encoding to the destination encoding, reencoding can be avoided. If the user supplies backing data which is zero terminated, or the destination does not require zero termination according to the parameters supplied to \code{render_*()}, memory copying can be avoided. For the vast majority of C++ code on POSIX platforms when targeting the filesystem, reencoding is always avoided and memory copying is usually avoided due to C++ source code string literals having a compatible encoding with filesystem paths.
     \item For the default configuration of \code{rendered_path}, dynamic memory allocation is usually avoided through the use of a reasonably large inline buffer. This makes \code{rendered_path} markedly larger than most classes typically standardised by the committee (expected to be between 1Kb and 2Kb depending on platform, but actual size is chosen by implementers). The intent is that \code{rendered_path} will be instantiated on the stack immediately preceding a syscall to render the path view into an appropriate form for that syscall. Upon the syscall's return, the \code{rendered_path} is unwound in the usual way. Therefore the large size is not the problem it might otherwise be.
     \item \code{rendered_path} is intended to be storable within STL containers as that can be useful sometimes, and provides assignment so a single stack allocated \code{rendered_path} instance can be reused for multiple path view inputs during a function. Via template parameters, \code{rendered_path} can be forced to be small for any particular use case, and thus exclusively use dynamic memory allocation. Similarly, via template parameters one can force \code{rendered_path} to be as large as the maximum possible path (e.g. \code{PATH_MAX}) and thus guarantee that no dynamic memory allocation can ever occur.
     \item For typical end users, \code{rendered_path} is expected to almost always be used with its default dynamic memory allocator, which uses an implementation defined allocator (this permits avoidance of an unnecessary extra dynamic memory allocation and memory copy on some platforms).
@@ -206,32 +210,29 @@ The WG21 tracker for this paper can be found at \url{https://github.com/cplusplu
     \begin{itemize}
     \item Remove all overloads taking a \code{std::locale} as per LEWG guidance.
     \item Fix incorrect ostream formatter as reported by Victor (thanks^^21). 
-    \item Removed render
-    \item Removed locale-based overloads
-    \item Use \emph{Returns} instead of \emph{Effects: As if} in overloads in [filebuf]
-    \item Fix uses of a free function \code{render_zero_terminated()} to be member functions
-    \item Clarify the lifetime semantics of \code{rendered_path}
-    \item LEWG requested a table of which \code{filesystem::path} implementations store
-    the \code{format} with which they were created:
+    \item Removed \code{render()} as per LEWG request.
+    \item Removed locale-based overloads as per LEWG request.
+    \item Use \emph{Returns} instead of \emph{Effects: As if} in overloads in [filebuf].
+    \item Fix incorrect mentions of a free function \code{render_zero_terminated()} to be member functions, which was a mistake.
+    \item Clarify the lifetime semantics of \code{rendered_path} as per LEWG request.
+    \item LEWG requested a table of which \code{filesystem::path} implementations store the \code{format} with which they were created:
     \begin{itemize}
       \item libstdc++: Ignores the format supplied in the constructor completely
-      (throws the values away and does not store it).\\
+      (throws the values away and does not store it).
       \item MSVC: Ignores the format supplied in the constructor completely
-      (throws the values away and does not store it).\\
+      (throws the values away and does not store it).
       \item libc++: Ignores the format supplied in the constructor completely
-      (throws the values away and does not store it).\\
+      (throws the values away and does not store it).
+      \item Boost.Filesystem: On POSIX ignores the format value; On Windows, if \code{native_format} requested, does not perform conversion of string before storage; if \code{generic_format} requested, all backslashes are converted to forward slashes in the string before storage.
     \end{itemize}
-    The chosen solution is that \code{filesystem::path::format()} always
-    returns \code{auto_format}, as that's what all three major implementations
-    do by ignoring the supplied \code{format} construction parameter.
+    The chosen solution is that if an implementation ignores the format value during construction, \code{filesystem::path::format()} always
+    returns \code{auto_format} as that is effectively the hard coded formatting choice.
     \item Use \emph{Returns} instead of \emph{Effects: As if} in overloads in [filebuf]
-    \item Fix uses of a free function \code{render_zero_terminated()} to be member functions
-    \item Clarify the lifetime semantics of \code{rendered_path}
     \item Removed named type requirements and respecified \code{path_view}-accepting overloads in terms of path-view-like (based on techniques used in P1928R4)
     \item Removed all notes for LEWG which weren't notes for the final text as per LEWG request.
-    \item Updated feature test macro to \code{YYYYMML}
-    \item Removed erroneous parameter from \code{render_null_terminated} and \code{render_unterminated}
-    \item Added normative wording for \code{render_null_terminated} and \code{render_unterminated}
+    \item Updated feature test macro to \code{YYYYMML}.
+    \item Removed erroneous parameter from \code{render_null_terminated} and \code{render_unterminated}.
+    \item Added normative wording for \code{render_null_terminated} and \code{render_unterminated}.
     \item Replace `implementation defined' with `see later normative wording' where appropriate,
     as per LEWG request.
     \item Changed references to "zero terminated" to reference "null terminated"
@@ -503,7 +504,7 @@ ios_base::openmode mode = ios_base::in);}}
 
 \tsref{fs.filesystem.syn}{29.12.4}
 
-\tsreplace{}{namespace std::filesystem \{ }{}
+\tsreplace{}{\code{namespace std::filesystem \{}}{}
 
 \tsreplace{}{  \code{class path;}}{}\\
 \tsreplace{}{}{+ \code{class path_view_component;}}\\
@@ -740,6 +741,8 @@ namespace std {
 \end{lstlisting}
 
 \tsreplace{}{}{+ \code{template<> struct hash<filesystem::path_view_component>;}}
+
+\tsreplace{}{}{+ \code{template<> struct hash<filesystem::path_view>;}}
 
 \begin{lstlisting}[language=cpp]
 }
@@ -1268,9 +1271,9 @@ Enumeration \code{termination} allows users to specify whether the backing data 
 
 \returns Let \code{s} refer to one element of backing data after the last separator element \emph{sep} as interpreted by \code{formatting()} in the path view component, otherwise then to the first element in the path view component; let \code{e} refer to the last period within \code{[s + 1, native_size())} unless \code{[s, native_size())} is `..', otherwise then to one past the last element in the path view component; returns the portion of the path view component matching \code{[s, e)}.
 
-\complexity \code{O(native_size())}.\\
+\complexity \code{O(native_size())}.
 
-\remarks{The current normative wording for \code{path::stem()} is unclear how to handle \code{"/foo/bar/.."}, so here \code{stem()} returns `..' and \code{extension()} returns `' in this circumstance.}
+\remarks{The current normative wording for \code{path::stem()} is unclear how to handle \code{"/foo/bar/.."}, so here \code{stem()} returns `..' and \code{extension()} returns `' in this circumstance.}\\
 
 \begin{lstlisting}[language=cpp]
     constexpr path_view_component extension() const noexcept;
@@ -1300,9 +1303,9 @@ Enumeration \code{termination} allows users to specify whether the backing data 
     \end{lstlisting}
 \end{itemize}
 
-\complexity \code{O(native_size())}.\\
+\complexity \code{O(native_size())}.
 
-\remarks{The above wording is intended to retain an important source of optimisation whereby implementations do not actually have to construct a \code{path_view_component::rendered_path} nor a \code{path} from those buffers e.g. if the backing data for both \code{*this} and \code{p} are of the same encoding, the two backing data ranges can be compared directly (ignoring multiple path separators etc), if and only if the same comparison result would occur if both buffers were converted to \code{path} and those paths compared.}
+\remarks{The above wording is intended to retain an important source of optimisation whereby implementations do not actually have to construct a \code{path_view_component::rendered_path} nor a \code{path} from those buffers e.g. if the backing data for both \code{*this} and \code{p} are of the same encoding, the two backing data ranges can be compared directly (ignoring multiple path separators etc), if and only if the same comparison result would occur if both buffers were converted to \code{path} and those paths compared.}\\
 
 \color{darkgreen}
 
@@ -1316,7 +1319,7 @@ Enumeration \code{termination} allows users to specify whether the backing data 
     render_null_terminated(Allocator allocate = Allocator());
 \end{lstlisting}
 
-\returns \code{rendered_path<termination::null_terminated, T, Allocator, _internal_buffer_size>(*this, allocate);}
+\returns \code{rendered_path<termination::null_terminated, T, Allocator, _internal_buffer_size>(*this, allocate);}\\
 
 
 \begin{lstlisting}[language=cpp]
@@ -1428,7 +1431,7 @@ namespace std::filesystem {
 
 Class \code{path_view_component::rendered_path} is a mechanism for rendering a path view component's backing data into a buffer, optionally reencoded, optionally zero terminated. It is expected to be, in most cases, much more efficient than constructing a \code{path} from visiting the backing data, however unlike \code{path} it can also target non-\code{path::value_type} consumers of filesystem paths e.g. other programming languages or archiving libraries.
 
-The lifetime of the contained data in a \code{path_view_component::rendered_path} is tied to the backing data of the \code{path_view_component} used to construct it.
+The lifetime of the contained data in a \code{path_view_component::rendered_path} is tied to the backing data of the \code{path_view_component} used to construct it, and not to the lifetime of the \code{path_view_component} itself.
 
 It is important to note that the consumer of path view components determines the interpretation of path view components, not class \code{path_view_component::rendered_path} nor \code{path}. For example, if the backing data is unencoded bytes, a consuming implementation might choose to use a binary key API to open filesystem content instead of a path based API whose input comes from \code{path_view_component::rendered_path} or \code{path} i.e. APIs consuming path view components may behave differently if the backing data is in one format, or another.
 
@@ -1976,18 +1979,21 @@ The backward traversal order is the reverse of forward traversal. The iteration 
 \color{black}
 
 \begin{center}
-\begin{tabular}{|c c|}
+\begin{tabular}{|p{3cm} p{12cm}|}
 \hline
 \bf{Name} & \bf{Meaning}\\
+\hline
 \texttt{native\_format} & The native pathname format.\\
 \texttt{generic\_format} & The generic pathname format.\\
 \color{darkgreen}
 \tsreplace{}{}{+ \code{binary_format}} & \tsreplace{}{}{+ The binary pathname format.}\\
 \color{black}
 \texttt{auto\_format} &
-The interpretation of the format of the character sequence is implementation-defined.
+The interpretation of the format of the character sequence is
+implementation-defined.
 The implementation may inspect the content of the character sequence to determine the format.
 \emph{Recommended practice:} For POSIX-based systems, native and generic formats are equivalent and the character sequence should always be interpreted in the same way.\\
+\hline
 \end{tabular}
 \end{center}
 
