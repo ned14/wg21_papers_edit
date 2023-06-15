@@ -206,8 +206,6 @@ The WG21 tracker for this paper can be found at \url{https://github.com/cplusplu
     \begin{itemize}
     \item Remove all overloads taking a \code{std::locale} as per LEWG guidance.
     \item Fix incorrect ostream formatter as reported by Victor (thanks\!). 
-    \item Renamed \code{render_zero_terminated} to \code{render_null_terminated}
-    \item Renamed \code{render_not_zero_terminated} to \code{render_unterminated}
     \item Removed render
     \item Removed locale-based overloads
     \item Use \emph{Returns} instead of \emph{Effects: As if} in overloads in [filebuf]
@@ -236,6 +234,8 @@ The WG21 tracker for this paper can be found at \url{https://github.com/cplusplu
     \item Added normative wording for \code{render_null_terminated} and \code{render_unterminated}
     \item Replace `implementation defined' with `see later normative wording' where appropriate,
     as per LEWG request.
+    \item Changed references to "zero terminated" to reference "null terminated"
+    \item Changed references to "not zero termination" to reference "unterminated"
     \end{itemize}
 
     \item R4 => R5:
@@ -799,9 +799,9 @@ namespace std::filesystem {
     
     using format = path::format;
 
-    enum zero_termination {
-      zero_terminated,
-      not_zero_terminated
+    enum termination {
+      null_terminated,
+      unterminated
     };
     
     template<class T>
@@ -818,24 +818,24 @@ namespace std::filesystem {
                                   format fmt = path::binary_format) noexcept;
 
     template<class CharT>
-    constexpr path_view_component(const CharT* b, size_type l, enum zero_termination zt,
+    constexpr path_view_component(const CharT* b, size_type l, enum termination zt,
                                   format fmt = path::binary_format) noexcept;
-    constexpr path_view_component(const byte* b, size_type l, enum zero_termination zt) noexcept;
+    constexpr path_view_component(const byte* b, size_type l, enum termination zt) noexcept;
 
     template<class CharT>
     constexpr path_view_component(const CharT* b, format fmt = path::binary_format) noexcept;
     constexpr path_view_component(const byte* b) noexcept;
 
     template<class CharT>
-    constexpr path_view_component(basic_string_view<CharT> b, enum zero_termination zt,
+    constexpr path_view_component(basic_string_view<CharT> b, enum termination zt,
                                   format fmt = path::binary_format) noexcept;
-    constexpr path_view_component(span<const byte> b, enum zero_termination zt) noexcept;
+    constexpr path_view_component(span<const byte> b, enum termination zt) noexcept;
 
     template<class It, class End>
-    constexpr path_view_component(It b, End e, enum zero_termination zt,
+    constexpr path_view_component(It b, End e, enum termination zt,
                                   format fmt = path::binary_format) noexcept;
     template<class It, class End>
-    constexpr path_view_component(It b, End e, enum zero_termination zt) noexcept;
+    constexpr path_view_component(It b, End e, enum termination zt) noexcept;
 
     constexpr path_view_component(const path_view_component&) = default;
     constexpr path_view_component(path_view_component&&) = default;
@@ -852,8 +852,8 @@ namespace std::filesystem {
     [[nodiscard]] constexpr bool empty() const noexcept;
     constexpr size_type native_size() const noexcept;
     constexpr format formatting() const noexcept;
-    constexpr bool has_zero_termination() const noexcept;
-    constexpr enum zero_termination zero_termination() const noexcept;
+    constexpr bool has_null_termination() const noexcept;
+    constexpr enum termination termination() const noexcept;
     constexpr bool has_stem() const noexcept;
     constexpr bool has_extension() const noexcept;
 
@@ -867,7 +867,7 @@ namespace std::filesystem {
     constexpr int compare(path_view_component p) const;
 
     // Conversion
-    template<enum path_view_component::zero_termination ZeroTermination,
+    template<enum path_view_component::termination Termination,
              class T = typename path::value_type,
              class Allocator = default_rendered_path_allocator<T>,
              size_type InternalBufferSize = default_internal_buffer_size>
@@ -877,14 +877,14 @@ namespace std::filesystem {
     template <class T = typename path::value_type,
               class Allocator = default_rendered_path_allocator<T>,
               size_type InternalBufferSize = default_internal_buffer_size>
-    constexpr rendered_path<zero_termination::zero_terminated,
+    constexpr rendered_path<termination::null_terminated,
                             T, Allocator, _internal_buffer_size>
     render_null_terminated(Allocator allocate = Allocator());
 
     template <class T = typename path::value_type,
               class Allocator = default_rendered_path_allocator<T>,
               size_type InternalBufferSize = default_internal_buffer_size>
-    constexpr rendered_path<zero_termination::not_zero_terminated,
+    constexpr rendered_path<termination::unterminated,
                             T, Allocator, _internal_buffer_size>
     render_unterminated(Allocator allocate = Allocator());
 
@@ -899,7 +899,7 @@ namespace std::filesystem {
       const char16_t* char16str_;     // exposition only
     };
     size_type length_{0};             // exposition only
-    uint16_t zero_terminated_ : 1;    // exposition only
+    uint16_t null_terminated_ : 1;    // exposition only
     uint16_t is_bytestr_ : 1;         // exposition only
     uint16_t is_charstr_ : 1;         // exposition only
     uint16_t is_wcharstr_ : 1;        // exposition only
@@ -987,7 +987,7 @@ Enumeration \code{format} determines how, and whether, to interpret path separat
     \item \code{auto_format} causes \emph{both} the native and generic path separators to delineate path components (and backing data may contain a mix of both).
 \end{itemize}
 
-Enumeration \code{zero_termination} allows users to specify whether the backing data has a zeroed value after the end of the supplied input.
+Enumeration \code{termination} allows users to specify whether the backing data has a zeroed value after the end of the supplied input.
 
 \code{default_rendered_path_allocator<T>} is a type possibly tagging the internal selection of an implementation defined allocator.
 
@@ -1015,7 +1015,7 @@ Enumeration \code{zero_termination} allows users to specify whether the backing 
 
 \effects Constructs an object of class \code{path_view_component} which refers to a zero terminated contiguous sequence of \code{path::value_type} which begins at \code{p.c_str()} and continues for \code{p.native().size()} items.
 
-\ensures \code{formatting() == p.formatting()} and \code{zero_termination() == zero_terminated}.\\
+\ensures \code{formatting() == p.formatting()} and \code{termination() == null_terminated}.\\
 
 \begin{lstlisting}[language=cpp]
     template<class CharT>
@@ -1026,30 +1026,30 @@ Enumeration \code{zero_termination} allows users to specify whether the backing 
 
 \effects Constructs an object of class \code{path_view_component} which refers to \code{[ s.data(), s.data() + s.size() )}.
 
-\ensures \code{formatting() == fmt} and \code{zero_termination() == zero_terminated}.\\
+\ensures \code{formatting() == fmt} and \code{termination() == null_terminated}.\\
 
 \begin{lstlisting}[language=cpp]
     template<class CharT>
-    constexpr path_view_component(const CharT* b, size_type l, enum zero_termination zt,
+    constexpr path_view_component(const CharT* b, size_type l, enum termination zt,
                                   format fmt = path::binary_format) noexcept;
 \end{lstlisting}
 \constraints \code{CharT} is any one of: \code{char}, \code{wchar_t}, \code{char8_t}, \code{char16_t}.
 
-\expects If \code{zt} is \code{zero_terminated}, then \code{[b, b + l]} is a valid range and \code{b[l] == CharT(0)}; otherwise \code{[b, b + l)} is a valid range.
+\expects If \code{zt} is \code{null_terminated}, then \code{[b, b + l]} is a valid range and \code{b[l] == CharT(0)}; otherwise \code{[b, b + l)} is a valid range.
 
 \effects Constructs an object of class \code{path_view_component} which refers to a contiguous sequence of one of \code{char}, \code{wchar_t}, \code{char8_t} or \code{char16_t} which begins at \code{b} and continues for \code{l} items.
 
-\ensures \code{formatting() == fmt} and \code{zero_termination() == zt}.\\
+\ensures \code{formatting() == fmt} and \code{termination() == zt}.\\
 
 \begin{lstlisting}[language=cpp]
-    constexpr path_view_component(const byte* b, size_type l, enum zero_termination zt) noexcept;
+    constexpr path_view_component(const byte* b, size_type l, enum termination zt) noexcept;
 \end{lstlisting}
 
-\expects If \code{zt} is \code{zero_terminated}, then \code{[b, b + l]} is a valid range and \code{b[l] == CharT(0)}; otherwise \code{[b, b + l)} is a valid range.
+\expects If \code{zt} is \code{null_terminated}, then \code{[b, b + l]} is a valid range and \code{b[l] == CharT(0)}; otherwise \code{[b, b + l)} is a valid range.
 
 \effects Constructs an object of class \code{path_view_component} which refers to a contiguous sequence of \code{byte} which begins at \code{b} and continues for \code{l} items.
 
-\ensures \code{formatting() == format::binary_format} and \code{zero_termination() == zt}.\\
+\ensures \code{formatting() == format::binary_format} and \code{termination() == zt}.\\
 
 
 \begin{lstlisting}[language=cpp]
@@ -1062,7 +1062,7 @@ Enumeration \code{zero_termination} allows users to specify whether the backing 
 
 \effects Equivalent to \code{path_view_component(b, char_traits<CharT>::length(b), fmt)}.
 
-\ensures \code{formatting() == fmt} and \code{zero_termination() == zero_terminated}.
+\ensures \code{formatting() == fmt} and \code{termination() == null_terminated}.
 
 \complexity \code{O(char_traits<CharT>::length(b))}.\\
 
@@ -1074,7 +1074,7 @@ Enumeration \code{zero_termination} allows users to specify whether the backing 
 
 \effects Equivalent to \code{path_view_component(b, (size_type)(e - b))}, if \code{memchr} were a \code{constexpr} available function.
 
-\ensures \code{formatting() == format::binary_format} and \code{zero_termination() == zero_terminated}.
+\ensures \code{formatting() == format::binary_format} and \code{termination() == null_terminated}.
 
 \complexity \code{O(e - b)}.\\
 
@@ -1082,28 +1082,28 @@ Enumeration \code{zero_termination} allows users to specify whether the backing 
 
 \begin{lstlisting}[language=cpp]
     template<class CharT>
-    constexpr path_view_component(basic_string_view<CharT> b, enum zero_termination zt,
+    constexpr path_view_component(basic_string_view<CharT> b, enum termination zt,
                                   format fmt = path::binary_format) noexcept;
 \end{lstlisting}
-\constraints \code{CharT} is any one of: \code{char}, \code{wchar_t}, \code{char8_t}, \code{char16_t}; if \code{zt} is \code{zero_terminated}, then \code{b.data()[b.size()] == CharT(0)}.
+\constraints \code{CharT} is any one of: \code{char}, \code{wchar_t}, \code{char8_t}, \code{char16_t}; if \code{zt} is \code{null_terminated}, then \code{b.data()[b.size()] == CharT(0)}.
 
 \effects Equivalent to \code{path_view_component(b.data(), b.size(), zt, fmt)}.
 
-\ensures \code{formatting() == fmt} and \code{zero_termination() == zt}.\\
+\ensures \code{formatting() == fmt} and \code{termination() == zt}.\\
 
 \begin{lstlisting}[language=cpp]
-    constexpr path_view_component(span<const byte> b, enum zero_termination zt) noexcept;
+    constexpr path_view_component(span<const byte> b, enum termination zt) noexcept;
 \end{lstlisting}
-\constraints If \code{zt} is \code{zero_terminated}, then \code{b.data()[b.size()] == byte(0)}.
+\constraints If \code{zt} is \code{null_terminated}, then \code{b.data()[b.size()] == byte(0)}.
 
 \effects Equivalent to \code{path_view_component(b.data(), b.size(), zt)}.
 
-\ensures \code{formatting() == format::binary_format} and \code{zero_termination() == zt}.\\
+\ensures \code{formatting() == format::binary_format} and \code{termination() == zt}.\\
 
 
 \begin{lstlisting}[language=cpp]
     template<class It, class End>
-    constexpr path_view_component(It b, End e, enum zero_termination zt,
+    constexpr path_view_component(It b, End e, enum termination zt,
                                   format fmt = path::binary_format) noexcept;
 \end{lstlisting}
 \constraints \begin{enumerate}
@@ -1111,38 +1111,38 @@ Enumeration \code{zero_termination} allows users to specify whether the backing 
     \item \code{End} satisfies \code{sized_sentinel_for<It>}.
     \item \code{iter_value_t<It>} is any one of: \code{char}, \code{wchar_t}, \code{char8_t}, \code{char16_t}.
     \item \code{is_convertible_v<End, size_type>} is false.
-    \item If \code{zt} is \code{zero_terminated}, then \code{*e == X(0)}.
+    \item If \code{zt} is \code{null_terminated}, then \code{*e == X(0)}.
 \end{enumerate}
 \expects \begin{enumerate}
-    \item If \code{zt} is \code{zero_terminated}, then \code{[b, e]} is a valid range, otherwise \code{[b, e)} is a valid range.
+    \item If \code{zt} is \code{null_terminated}, then \code{[b, e]} is a valid range, otherwise \code{[b, e)} is a valid range.
     \item \code{It} models \code{contiguous_iterator}.
     \item \code{End} models \code{sized_sentinel_for<It>}.
 \end{enumerate}
 
 \effects Equivalent to \code{path_view_component(to_address(begin), end - begin, zt, fmt)}.
 
-\ensures \code{formatting() == fmt} and \code{zero_termination() == zt}.\\
+\ensures \code{formatting() == fmt} and \code{termination() == zt}.\\
 
 \begin{lstlisting}[language=cpp]
     template<class It, class End>
-    constexpr path_view_component(It b, End e, enum zero_termination zt) noexcept;
+    constexpr path_view_component(It b, End e, enum termination zt) noexcept;
 \end{lstlisting}
 \constraints \begin{enumerate}
     \item \code{It} satisfies \code{contiguous_iterator}.
     \item \code{End} satisfies \code{sized_sentinel_for<It>}.
     \item \code{iter_value_t<It>} is \code{byte}.
     \item \code{is_convertible_v<End, size_type>} is false.
-    \item If \code{zt} is \code{zero_terminated}, then \code{*e == byte(0)}.
+    \item If \code{zt} is \code{null_terminated}, then \code{*e == byte(0)}.
 \end{enumerate}
 \expects \begin{enumerate}
-    \item If \code{zt} is \code{zero_terminated}, then \code{[b, e]} is a valid range, otherwise \code{[b, e)} is a valid range.
+    \item If \code{zt} is \code{null_terminated}, then \code{[b, e]} is a valid range, otherwise \code{[b, e)} is a valid range.
     \item \code{It} models \code{contiguous_iterator}.
     \item \code{End} models \code{sized_sentinel_for<It>}.
 \end{enumerate}
 
 \effects Equivalent to \code{path_view_component(to_address(begin), end - begin, zt)}.
 
-\ensures \code{formatting() == format::binary_format} and \code{zero_termination() == zt}.\\
+\ensures \code{formatting() == format::binary_format} and \code{termination() == zt}.\\
 
 \subsubsection*{Modifiers [fs.path\_view\_component.modifiers]}
 
@@ -1173,13 +1173,13 @@ Enumeration \code{zero_termination} allows users to specify whether the backing 
 \returns The formatting with which the path view component was constructed.\\
 
 \begin{lstlisting}[language=cpp]
-    constexpr bool has_zero_termination() const noexcept;
+    constexpr bool has_null_termination() const noexcept;
 \end{lstlisting}
 
 \returns True if the path view component was constructed with zero termination.\\
 
 \begin{lstlisting}[language=cpp]
-    constexpr enum zero_termination zero_termination() const noexcept;
+    constexpr enum termination termination() const noexcept;
 \end{lstlisting}
 
 \returns The zero termination with which the path view component was constructed.\\
@@ -1249,30 +1249,30 @@ Enumeration \code{zero_termination} allows users to specify whether the backing 
     template <class T = typename path::value_type,
               class Allocator = default_rendered_path_allocator<T>,
               size_type InternalBufferSize = default_internal_buffer_size>
-    constexpr rendered_path<zero_termination::zero_terminated,
+    constexpr rendered_path<termination::null_terminated,
                             T, Allocator, _internal_buffer_size>
     render_null_terminated(Allocator allocate = Allocator());
 \end{lstlisting}
 
-\returns \code{rendered_path<zero_termination::zero_terminated, T, Allocator, _internal_buffer_size>(*this, allocate);}
+\returns \code{rendered_path<termination::null_terminated, T, Allocator, _internal_buffer_size>(*this, allocate);}
 
 
 \begin{lstlisting}[language=cpp]
     template <class T = typename path::value_type,
               class Allocator = default_rendered_path_allocator<T>,
               size_type InternalBufferSize = default_internal_buffer_size>
-    constexpr rendered_path<zero_termination::not_zero_terminated,
+    constexpr rendered_path<termination::unterminated,
                             T, Allocator, _internal_buffer_size>
     render_unterminated(Allocator allocate = Allocator());
 \end{lstlisting}
 
-\returns \code{rendered_path<zero_termination::not_zero_terminated, T, Allocator, _internal_buffer_size>(*this, allocate);}
+\returns \code{rendered_path<termination::unterminated, T, Allocator, _internal_buffer_size>(*this, allocate);}
 
 \subsection*{Class \code{path_view_component::rendered_path} [fs.path\_view\_component.rendered\_path]}
 
 \begin{lstlisting}[language=cpp]
 namespace std::filesystem {
-  template<enum path_view_component::zero_termination ZeroTermination,
+  template<enum path_view_component::termination Termination,
            class T = typename path::value_type,
            class Allocator = path_view_component::default_rendered_path_allocator<T>,
            size_type InternalBufferSize = path_view_component::default_internal_buffer_size>
@@ -1342,7 +1342,7 @@ namespace std::filesystem {
     
     constexpr span<const value_type> as_span() const noexcept;
     
-    constexpr const_pointer c_str() const noexcept;   // available only if zero_terminated and non-byte backing
+    constexpr const_pointer c_str() const noexcept;   // available only if null_terminated and non-byte backing
 
   private:
     span<const value_type> _ref;                 // exposition only
@@ -1372,7 +1372,7 @@ It is important to note that the consumer of path view components determines the
 
 \note{For example, Microsoft Windows has system APIs which can open a file by binary key specified in the \code{FILE_ID_DESCRIPTOR} structure. Some POSIX implementations support the standard SNIA NVMe key-value API for storage devices. IMPORTANT: If a consuming implementation expects to, in the future, interpret byte backing data differently e.g. it does not support binary key lookup on a filesystem now, but may do so in the future, \textbf{it ought to reject byte backed path view components now} with an appropriate error instead of utilising the \code{rendered_path} byte passthrough described below.}
 
-After construction, an object of class \code{path_view_component::rendered_path} will have members \code{data()} and \code{size()} set as follows: \code{data()} will point at an optionally zero terminated array of \code{value_type} of length \code{size()}, the count of which excludes any zero termination. Furthermore, if \code{ZeroTermination} is \code{zero_terminated}, \code{c_str()} additionally becomes available.
+After construction, an object of class \code{path_view_component::rendered_path} will have members \code{data()} and \code{size()} set as follows: \code{data()} will point at an optionally zero terminated array of \code{value_type} of length \code{size()}, the count of which excludes any zero termination. Furthermore, if \code{Termination} is \code{null_terminated}, \code{c_str()} additionally becomes available.
 
 As an example of usage with POSIX \code{open()}, which consumes a zero-terminated \code{const path::value_type*} i.e. \code{const char *}:
 
@@ -1414,7 +1414,7 @@ int open_file(path_view path)
 
 \effects
 \begin{itemize}
-    \item If \code{value_type} is \code{byte}, \code{size()} will return \code{v.native_size()}. If \code{zero_termination} is \code{zero_terminated} and \code{v.zero_termination()} is \code{not_zero_terminated}:
+    \item If \code{value_type} is \code{byte}, \code{size()} will return \code{v.native_size()}. If \code{termination} is \code{null_terminated} and \code{v.termination()} is \code{unterminated}:
     \begin{itemize}
         \item If \code{size() < internal_buffer_size - 1}:
         \begin{itemize}
@@ -1430,7 +1430,7 @@ int open_file(path_view path)
         \item \code{data()} returns the backing data.
     \end{itemize}
     
-    \item If the backing data is \code{byte} and \code{value_type} is not \code{byte}, \code{size()} will return \code{v.native_size() / sizeof(value_type)}. If \code{zero_termination} is \code{zero_terminated}, and either \code{(v.native_size() + v.zero_terminated()) != (size() + 1) * sizeof(value_type)} is true or \code{v.zero_termination()} is \code{not_zero_terminated}:
+    \item If the backing data is \code{byte} and \code{value_type} is not \code{byte}, \code{size()} will return \code{v.native_size() / sizeof(value_type)}. If \code{termination} is \code{null_terminated}, and either \code{(v.native_size() + v.has_null_termination()) != (size() + 1) * sizeof(value_type)} is true or \code{v.termination()} is \code{unterminated}:
     \begin{itemize}
         \item If \code{size() < internal_buffer_size - 1}:
         \begin{itemize}
@@ -1446,9 +1446,9 @@ int open_file(path_view path)
         \item \code{data()} returns the backing data.
     \end{itemize}
 
-\remarks{The \code{(v.native_size() + v.has_zero_termination()) != (size() + 1) * sizeof(value_type)} is to enable passthrough of byte input to \code{wchar_t} output by passing in an uneven sized byte input marked as zero terminated, whereby if the zero terminated byte is added into the input, the total sum of bytes equals exactly the number of bytes which the zero terminated output buffer would occupy. The inferred promise here is that the code which constructed the path view with raw bytes and zero termination has appropriately padded the end of the buffer with the right number of zero bytes to make up a null terminated \code{wchar_t}.}
+\remarks{The \code{(v.native_size() + v.has_null_termination()) != (size() + 1) * sizeof(value_type)} is to enable passthrough of byte input to \code{wchar_t} output by passing in an uneven sized byte input marked as zero terminated, whereby if the zero terminated byte is added into the input, the total sum of bytes equals exactly the number of bytes which the zero terminated output buffer would occupy. The inferred promise here is that the code which constructed the path view with raw bytes and zero termination has appropriately padded the end of the buffer with the right number of zero bytes to make up a null terminated \code{wchar_t}.}
 
-    \item If the backing data and \code{value_type} have the same bit-for-bit encoding in the wide sense (e.g. if the narrow system encoding \code{char} is considered to be UTF-8, it is considered the same encoding as \code{char8_t}; similarly if the wide system encoding \code{wchar_t} is considered to be UTF-16, it is considered the same encoding as \code{char16_t}, and so on), \code{size()} will return \code{v.native_size()}. If \code{zero_termination} is \code{zero_terminated} and \code{v.zero_termination()} is \code{not_zero_terminated}, or depending on the value of \code{v.formatting()} the backing data contains any generic path separators and the generic path separator is not the native path separator:
+    \item If the backing data and \code{value_type} have the same bit-for-bit encoding in the wide sense (e.g. if the narrow system encoding \code{char} is considered to be UTF-8, it is considered the same encoding as \code{char8_t}; similarly if the wide system encoding \code{wchar_t} is considered to be UTF-16, it is considered the same encoding as \code{char16_t}, and so on), \code{size()} will return \code{v.native_size()}. If \code{termination} is \code{null_terminated} and \code{v.termination()} is \code{unterminated}, or depending on the value of \code{v.formatting()} the backing data contains any generic path separators and the generic path separator is not the native path separator:
     \begin{itemize}
         \item If \code{size() < internal_buffer_size - 1}:
         \begin{itemize}
@@ -1464,7 +1464,7 @@ int open_file(path_view path)
         \item \code{data()} returns the backing data.
     \end{itemize}
 
-    \item Otherwise, a reencoding of the backing data into \code{value_type} shall be performed, replacing any generic path separators with native path separators if \code{v.formatting()} allows that, zero \code{value_type} terminating the reencoded buffer if \code{zero_termination} is \code{zero_terminated}. \code{data()} shall return that reencoded path, and \code{size()} shall be the number of elements output, excluding any zero termination appended.
+    \item Otherwise, a reencoding of the backing data into \code{value_type} shall be performed, replacing any generic path separators with native path separators if \code{v.formatting()} allows that, zero \code{value_type} terminating the reencoded buffer if \code{termination} is \code{null_terminated}. \code{data()} shall return that reencoded path, and \code{size()} shall be the number of elements output, excluding any zero termination appended.
 
 \end{itemize}
 
@@ -1507,10 +1507,10 @@ int open_file(path_view path)
 
 
 \begin{lstlisting}[language=cpp]
-    constexpr const_pointer c_str() const noexcept;   // available only if zero_terminated and non-byte backing
+    constexpr const_pointer c_str() const noexcept;   // available only if null_terminated and non-byte backing
 \end{lstlisting}
 
-\constraints \code{T} is any one of: \code{char}, \code{wchar_t}, \code{char8_t}, \code{char16_t}; \code{ZeroTermination} is \code{zero_termination::zero_terminated}.
+\constraints \code{T} is any one of: \code{char}, \code{wchar_t}, \code{char8_t}, \code{char16_t}; \code{Termination} is \code{termination::null_terminated}.
 
 \returns The same value as \code{data()}.\\
 
@@ -1633,7 +1633,7 @@ basic_ostream<charT, traits>& operator<<(basic_ostream<charT, traits>& os, path_
     else
     {
       // Possibly reencode to ostream's character type
-      path_view_component::rendered_path<typename output_type::char_type> zbuff(v, path_view_component::not_zero_terminated);
+      path_view_component::rendered_path<typename output_type::char_type> zbuff(v, path_view_component::unterminated);
       return os << quoted(basic_string_view<typename output_type::char_type>(zbuff.buffer, zbuff.length));
     }
   }, v);
@@ -1677,24 +1677,24 @@ namespace std::filesystem {
                         format fmt = path::auto_format) noexcept;
                         
     template<class CharT>
-    constexpr path_view(const CharT* b, size_type l, enum zero_termination zt,
+    constexpr path_view(const CharT* b, size_type l, enum termination zt,
                         format fmt = path::auto_format) noexcept;
-    constexpr path_view(const byte* b, size_type l, enum zero_termination zt) noexcept;
+    constexpr path_view(const byte* b, size_type l, enum termination zt) noexcept;
 
     template<class CharT>
     constexpr path_view(const CharT* b, format fmt = path::auto_format) noexcept;
     constexpr path_view(const byte* b) noexcept;
 
     template<class CharT>
-    constexpr path_view(basic_string_view<CharT> b, enum zero_termination zt,
+    constexpr path_view(basic_string_view<CharT> b, enum termination zt,
                         format fmt = path::auto_format) noexcept;
-    constexpr path_view(span<const byte> b, enum zero_termination zt) noexcept;
+    constexpr path_view(span<const byte> b, enum termination zt) noexcept;
 
     template<class It, class End>
-    constexpr path_view(It b, End e, enum zero_termination zt,
+    constexpr path_view(It b, End e, enum termination zt,
                         format fmt = path::auto_format) noexcept;
     template<class It, class End>
-    constexpr path_view(It b, End e, enum zero_termination zt) noexcept;
+    constexpr path_view(It b, End e, enum termination zt) noexcept;
 
     constexpr path_view(const path_view&) = default;
     constexpr path_view(path_view&&) = default;
