@@ -231,6 +231,8 @@ The WG21 tracker for this paper can be found at \url{https://github.com/cplusplu
     \item Clarify the lifetime semantics of \code{rendered_path}
     \item Removed named type requirements and respecified \code{path_view}-accepting overloads in terms of \code{\emp{path-view-like}} (based on techniques used in P1928R4)
     \item Removed all notes for LEWG which weren't notes for the final text as per LEWG request.
+    \item Replace `implementation defined' with `see later normative wording' where appropriate,
+    as per LEWG request.
     \end{itemize}
 
     \item R4 => R5:
@@ -563,7 +565,7 @@ ios_base::openmode mode = ios_base::out);}}
 visit([&p](auto sv) -> path {
   if constexpr(same_as<remove_cvref_t<decltype(sv)>, span<const byte>>)
   {
-    // Implementation defined
+    // See later normative wording
   }
   else
   {
@@ -579,7 +581,7 @@ visit([&p](auto sv) -> path {
 visit([&p, &loc](auto sv) -> path {
   if constexpr(same_as<remove_cvref_t<decltype(sv)>, span<const byte>>)
   {
-    // Implementation defined
+    // See later normative wording
   }
   else
   {
@@ -1418,8 +1420,10 @@ basic_ostream<charT, traits>& operator<<(basic_ostream<charT, traits>& os, path_
 
     if constexpr(same_as<input_type, span<const byte>>)
     {
-      /* Implementation defined. Microsoft Windows requires the following
-      textualisation for FILE_ID_DESCRIPTOR.ObjectId keys which are guids:
+      /* Handle byte encoded filesystem paths however the
+      implementation handles them. For example, Microsoft Windows
+      requires the following textualisation for
+      FILE_ID_DESCRIPTOR.ObjectId keys which are guids:
       
       "{7ecf65a0-4b78-5f9b-e77c-8770091c0100}"
       

@@ -29,7 +29,10 @@ and not tying lifetime to its parent path view.
 
 [x] Remove all black coloured notes
 
-[ ] Instead of implementation defined, do "see later normative wording"
+[x] Instead of implementation defined, do "see later normative wording"
+
+[ ] "See later normative wording" needs to have a named section, and that named section ought to be
+named in the "see later normative wording" comments.
 
 [ ] Fork a standard library, ensure filesystem overload selection are unaffected by new overloads.
 
