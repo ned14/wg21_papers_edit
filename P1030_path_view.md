@@ -23,13 +23,13 @@ and not tying lifetime to its parent path view.
 
 [X] Fix the render_zero_terminated free function
 
-[ ] Fork a standard library, ensure filesystem overload selection are unaffected by new overloads.
-
 [X] Examine all filesystem::path implementations to produce tony table of whether format() is stored already.
 
-[ ] Include all of existing path during deltas
+[x] Include all of existing path during deltas
 
-[ ] Remove all black coloured notes
+[x] Remove all black coloured notes
 
 [ ] Instead of implementation defined, do "see later normative wording"
+
+[ ] Fork a standard library, ensure filesystem overload selection are unaffected by new overloads.
 

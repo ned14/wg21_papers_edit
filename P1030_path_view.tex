@@ -230,6 +230,7 @@ The WG21 tracker for this paper can be found at \url{https://github.com/cplusplu
     \item Fix uses of a free function \code{render_zero_terminated()} to be member functions
     \item Clarify the lifetime semantics of \code{rendered_path}
     \item Removed named type requirements and respecified \code{path_view}-accepting overloads in terms of \code{\emp{path-view-like}} (based on techniques used in P1928R4)
+    \item Removed all notes for LEWG which weren't notes for the final text as per LEWG request.
     \end{itemize}
 
     \item R4 => R5:
@@ -534,9 +535,9 @@ ios_base::openmode mode = ios_base::out);}}
 
 \tsreplace{}{}{+ \code{friend path operator/ (const path\& lhs, \emp{path-view-like} rhs);}}
 
-\tsreplace{}{}{+ \code{friend path operator/ (path&& lhs, path&& rhs);}}
+\code{friend path operator/ (const path& lhs, const path& rhs);}
 
-\note{The above rvalue ref path \code{operator/} overload isn't strictly needed for path view, but helps ameliorate the \code{"my" / "path" / "literal"} pattern you see in code which is currently extremely inefficient at runtime.}
+\tsreplace{}{}{+ \code{friend path operator/ (path&& lhs, path&& rhs);}}
 
 \tsreplace{}{}{+ \code{friend path operator/ (path&& lhs, \emp{path-view-like} rhs);}}
 
@@ -551,8 +552,6 @@ ios_base::openmode mode = ios_base::out);}}
 \code{const string_type& native() const} \tsreplace{}{}{\&}\code{ noexcept;}
 
 \tsreplace{}{}{+ \code{string_type&& native() && noexcept;}}
-
-\note{The above rvalue ref path overload isn't strictly needed for path view, but makes path more consistent with stringstream's \code{str()}, and lets one write more efficient code. I'll also be honest in saying that more than once in performance critical code I've written code such as \code{const_cast<string_type&>(path.native()).resize(N)} and then written a hexadecimal string directly into path's underlying string representation.}
 
 
 \tsref{fs.path.construct}{29.12.6.5.1}
@@ -907,11 +906,7 @@ Enumeration \code{zero_termination} allows users to specify whether the backing 
 
 \complexity \code{O(e - b)}.\\
 
-\color{black}
-
-\note{If the consumer of path view components interprets byte input as a fixed length binary key, then it will pass the byte pointer as-is to the relevant system call. If the byte range has an incorrect length for the destination, the behaviour is unspecified.}
-
-\color{darkgreen}
+\remarks{If the consumer of path view components interprets byte input as a fixed length binary key, then it will pass the byte pointer as-is to the relevant system call. If the byte range has an incorrect length for the destination, the behaviour is unspecified.}
 
 \begin{lstlisting}[language=cpp]
     template<class CharT>
@@ -1041,11 +1036,7 @@ Enumeration \code{zero_termination} allows users to specify whether the backing 
 
 \complexity \code{O(native_size())}.\\
 
-\color{black}
-
-\note{The current normative wording for \code{path::stem()} is unclear how to handle \code{"/foo/bar/.."}, so I chose for \code{stem()} to return `..' and \code{extension()} to return `' in this circumstance.}
-
-\color{darkgreen}
+\remarks{The current normative wording for \code{path::stem()} is unclear how to handle \code{"/foo/bar/.."}, so here \code{stem()} returns `..' and \code{extension()} returns `' in this circumstance.}
 
 \begin{lstlisting}[language=cpp]
     constexpr path_view_component extension() const noexcept;
@@ -1077,9 +1068,7 @@ Enumeration \code{zero_termination} allows users to specify whether the backing 
 
 \complexity \code{O(native_size())}.\\
 
-\color{black}
-
-\note{The above wording is intended to retain an important source of optimisation whereby implementations do not actually have to construct a \code{path_view_component::rendered_path} nor a \code{path} from those buffers e.g. if the backing data for both \code{*this} and \code{p} are of the same encoding, the two backing data ranges can be compared directly (ignoring multiple path separators etc), if and only if the same comparison result would occur if both buffers were converted to \code{path} and those paths compared.}
+\remarks{The above wording is intended to retain an important source of optimisation whereby implementations do not actually have to construct a \code{path_view_component::rendered_path} nor a \code{path} from those buffers e.g. if the backing data for both \code{*this} and \code{p} are of the same encoding, the two backing data ranges can be compared directly (ignoring multiple path separators etc), if and only if the same comparison result would occur if both buffers were converted to \code{path} and those paths compared.}
 
 
 \subsection*{Class \code{path_view_component::rendered_path} [fs.path\_view\_component.rendered\_path]}
@@ -1182,19 +1171,9 @@ Class \code{path_view_component::rendered_path} is a mechanism for rendering a p
 
 The lifetime of the contained data in a \code{path_view_component::rendered_path} is tied to the backing data of the \code{path_view_component} used to construct it.
 
-\color{black}
-
-\note{Objects of class \code{path_view_component::rendered_path} are typically expected to be instantiated upon the stack immediately preceding a system call, and destroyed shortly after return from a system call. The large default storage requirements of \code{rendered_path} therefore does not introduce the usual concerns, though we disable the copy constructor to prevent unintentional inefficiency. The move constructor remains available however, as in empirical usage it was found occasionally useful to pre-render an array of path views into an array of their syscall-ready forms e.g. if the path views' backing data would be about to disappear. Being able to store \code{rendered_path} inside STL containers is useful in this situation.}
-
-\color{darkgreen}
-
 It is important to note that the consumer of path view components determines the interpretation of path view components, not class \code{path_view_component::rendered_path} nor \code{path}. For example, if the backing data is unencoded bytes, a consuming implementation might choose to use a binary key API to open filesystem content instead of a path based API whose input comes from \code{path_view_component::rendered_path} or \code{path} i.e. APIs consuming path view components may behave differently if the backing data is in one format, or another.
 
-\color{black}
-
 \note{For example, Microsoft Windows has system APIs which can open a file by binary key specified in the \code{FILE_ID_DESCRIPTOR} structure. Some POSIX implementations support the standard SNIA NVMe key-value API for storage devices. IMPORTANT: If a consuming implementation expects to, in the future, interpret byte backing data differently e.g. it does not support binary key lookup on a filesystem now, but may do so in the future, \textbf{it ought to reject byte backed path view components now} with an appropriate error instead of utilising the \code{rendered_path} byte passthrough described below.}
-
-\color{darkgreen}
 
 After construction, an object of class \code{path_view_component::rendered_path} will have members \code{data()} and \code{size()} set as follows: \code{data()} will point at an optionally zero terminated array of \code{value_type} of length \code{size()}, the count of which excludes any zero termination. Furthermore, if \code{ZeroTermination} is \code{zero_terminated}, \code{c_str()} additionally becomes available.
 
@@ -1221,12 +1200,6 @@ int open_file(path_view path)
   return ::open(zpath.c_str(), O_RDONLY);
 }
 \end{lstlisting}
-
-\color{black}
-
-\note{Requiring users to always type out the zero termination they require may seem onerous, however defaulting the parameter to zero terminate would lead to accidental memory copies purely and solely just to zero terminate, which eliminates much of the advantage of using path views. It is correct that the \emph{primary} filesystem APIs on the two major platforms both require zero termination, however there are many other uses of paths e.g. with ZIP archive libraries, Java JNI, etc with APIs that take a lengthed path. Many of the secondary filesystem APIs on the two major platforms also use lengthed not zero terminated paths e.g. Microsoft Windows NT kernel API, which if using then memory copies can be completely avoided.}
-
-\color{darkgreen}
 
 ~ \\
 
@@ -1276,11 +1249,7 @@ int open_file(path_view path)
         \item \code{data()} returns the backing data.
     \end{itemize}
 
-\color{black}
-
-\note{The \code{(v.native_size() + v.has_zero_termination()) != (size() + 1) * sizeof(value_type)} is to enable passthrough of byte input to \code{wchar_t} output by passing in an uneven sized byte input marked as zero terminated, whereby if the zero terminated byte is added into the input, the total sum of bytes equals exactly the number of bytes which the zero terminated output buffer would occupy. The inferred promise here is that the code which constructed the path view with raw bytes and zero termination has appropriately padded the end of the buffer with the right number of zero bytes to make up a null terminated \code{wchar_t}.}
-
-\color{darkgreen}
+\remarks{The \code{(v.native_size() + v.has_zero_termination()) != (size() + 1) * sizeof(value_type)} is to enable passthrough of byte input to \code{wchar_t} output by passing in an uneven sized byte input marked as zero terminated, whereby if the zero terminated byte is added into the input, the total sum of bytes equals exactly the number of bytes which the zero terminated output buffer would occupy. The inferred promise here is that the code which constructed the path view with raw bytes and zero termination has appropriately padded the end of the buffer with the right number of zero bytes to make up a null terminated \code{wchar_t}.}
 
     \item If the backing data and \code{value_type} have the same bit-for-bit encoding in the wide sense (e.g. if the narrow system encoding \code{char} is considered to be UTF-8, it is considered the same encoding as \code{char8_t}; similarly if the wide system encoding \code{wchar_t} is considered to be UTF-16, it is considered the same encoding as \code{char16_t}, and so on), \code{size()} will return \code{v.native_size()}. If \code{zero_termination} is \code{zero_terminated} and \code{v.zero_termination()} is \code{not_zero_terminated}, or depending on the value of \code{v.formatting()} the backing data contains any generic path separators and the generic path separator is not the native path separator:
     \begin{itemize}
@@ -1408,12 +1377,6 @@ int open_file(path_view path)
 \end{lstlisting}
 
 \effects Comparing for equality or inequality string literals, string views, byte literals or byte views, against a path view component is deleted. A diagnostic explaining that \code{.compare()} or \code{visit()} ought to be used instead is recommended.
-
-\color{black}
-
-\note{Experience of how people use path views in the real world found that much unintended performance loss derives from people comparing path views to string literals, because of the potential extremely expensive (relatively speaking) reencode and dynamic memory allocation per comparison due to the implicit conversion. Even this paper's author, who you would think would really know better, got stung by this on more than one occasion. So the decision was taken to prevent such constructs compiling at all, which is very unfortunate, but it does force the user to write much better code e.g. \code{visit()} with an overload set for \code{operator()(basic_string_view<CharT>)} for each possible backing data encoding.}
-
-\color{darkgreen}
 
 \subsection*{Non-member functions [fs.path\_view\_component.comparison]}
 
