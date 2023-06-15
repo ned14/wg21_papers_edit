@@ -210,7 +210,6 @@ The WG21 tracker for this paper can be found at \url{https://github.com/cplusplu
     \item Renamed render_not_zero_terminated to render_unterminated
     \item Removed render
     \item Removed locale-based overloads
-    \item Added Cpp17- prefix to named type requirements
     \item Use \emph{Returns} instead of \emph{Effects: As if} in overloads in [filebuf]
     \item Fix uses of a free function \code{render_zero_terminated()} to be member functions
     \item Clarify the lifetime semantics of \code{rendered_path}
@@ -230,6 +229,7 @@ The WG21 tracker for this paper can be found at \url{https://github.com/cplusplu
     \item Use \emph{Returns} instead of \emph{Effects: As if} in overloads in [filebuf]
     \item Fix uses of a free function \code{render_zero_terminated()} to be member functions
     \item Clarify the lifetime semantics of \code{rendered_path}
+    \item Removed named type requirements and respecified \code{path_view}-accepting overloads in terms of \code{\emp{path-view-like}} (based on techniques used in P1928R4)
     \end{itemize}
 
     \item R4 => R5:
@@ -250,30 +250,6 @@ The WG21 tracker for this paper can be found at \url{https://github.com/cplusplu
 
 The following normative wording delta is against \url{https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2021/n4901.pdf}. Green text is wording to be added, red text is wording to be removed, black text is generally notes to LEWG which shall be removed if the paper is sent to LWG.
 
-\tsref{After 16.4.4.6 \emph{Cpp17Allocator} requirements}{16.4.4.7 \emph{Cpp17PathView} and \emph{Cpp17NonLegacyPath} requirements [path\_view.requirements]}
-
-\tsrefz{16.4.4.7.1 General [path\_view.requirements.general]}
-
-\tsreplace{}{}{+ The library contains many functions which accept a filesystem path. For backwards compatibility, overload sets from previous standard revisions ought to be selected preferentially to path view overloads. The \code{Cpp17PathView} and \code{Cpp17NonLegacyPath} requirements enable overloads for non-legacy path inputs.}
-
-\tsrefz{16.4.4.7.2 \emph{Cpp17PathView} requirement [path\_view.requirements.pathview]}
-
-\tsreplace{}{}{+ A type \code{P} meets the \code{Cpp17PathView} requirements if it meets any one of:
-\begin{itemize}
-    \item It is a \code{filesystem::path_view_component}, or reference to that.
-    \item It is a \code{filesystem::path_view}, or reference to that.
-\end{itemize}}
-
-\tsrefz{16.4.4.7.3 \emph{Cpp17NonLegacyPath} requirement [path\_view.requirements.nonlegacypath]}
-
-\tsreplace{}{}{+ A type \code{P} meets the \code{Cpp17NonLegacyPath} requirements if it meets any one of:
-\begin{itemize}
-    \item It is a \code{filesystem::path_view_component}, or reference to that.
-    \item It is a \code{filesystem::path_view}, or reference to that.
-    \item It is convertible to \code{const byte*}.
-    \item It is convertible to \code{span<const byte>}.
-\end{itemize}}
-
 \tsrefp{version.syn}{17.3.2}{2}
 
 \code{#define __cpp_lib_filesystem}
@@ -282,90 +258,76 @@ The following normative wording delta is against \url{https://www.open-std.org/j
 
 \tsref{filebuf}{29.10.2}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T>}}\\
-\tsreplace{}{}{+ \code{basic_filebuf* open(T&& s, ios_base::openmode mode);}}
+\tsreplace{}{}{+ \code{basic_filebuf* open(\emp{path-view-like} s, ios_base::openmode mode);}}
 
 \tsrefp{filebuf.members}{29.10.2.4}{7}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T>}}\\
-\tsreplace{}{}{+ \code{basic_filebuf* open(T&& s, ios_base::openmode mode);}}
+\tsreplace{}{}{+ \code{basic_filebuf* open(\emp{path-view-like} s, ios_base::openmode mode);}}
 
-\tsreplace{}{}{+ \returns \code{open(path_view(forward<T&&>(s)).render_null_terminated().c_str(), mode);}}
+\tsreplace{}{}{+ \remarks Behaves as if \code{return open(filesystem::path(s), mode);}}
 
 \tsref{ifstream}{29.10.3}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T>}}\\
-\tsreplace{}{}{+ \code{explicit basic_ifstream(T&& s,
+\tsreplace{}{}{+ \code{explicit basic_ifstream(\emp{path-view-like} s,
 ios_base::openmode mode = ios_base::in);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T>}}\\
-\tsreplace{}{}{+ \code{void open(T&& s, ios_base::openmode mode = ios_base::in);}}
+\tsreplace{}{}{+ \code{void open(\emp{path-view-like} s, ios_base::openmode mode = ios_base::in);}}
 
 \tsrefp{ifstream.cons}{29.10.3.1}{4}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T>}}\\
-\tsreplace{}{}{+ \code{explicit basic_ifstream(T&& s,
+\tsreplace{}{}{+ \code{explicit basic_ifstream(\emp{path-view-like} s,
 ios_base::openmode mode = ios_base::in);}}
 
-\tsreplace{}{}{+ \returns \code{basic_ifstream(path_view(forward<T&&>(s)).render_null_terminated().c_str(), mode);}}
+\tsreplace{}{}{+ \remarks Behaves as if the arguments to the constructor were \code{filesystem::path(s.view), mode}}
 
 \tsrefp{ifstream.members}{29.10.3.3}{4}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T>}}\\
-\tsreplace{}{}{+ \code{void open(T&& s, ios_base::openmode mode = ios_base::in);}}
+\tsreplace{}{}{+ \code{void open(\emp{path-view-like} s, ios_base::openmode mode = ios_base::in);}}
 
-\tsreplace{}{}{+ \returns \code{open(path_view(forward<T&&>(s)).render_null_terminated().c_str(), mode);}}
+\tsreplace{}{}{+ \remarks Behaves as if \code{return open(filesystem::path(s.view), mode);}}
 
 
 \tsref{ofstream}{29.10.4}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T>}}\\
-\tsreplace{}{}{+ \code{explicit basic_ofstream(T&& s,
+\tsreplace{}{}{+ \code{explicit basic_ofstream(\code{path-view-like} s,
 ios_base::openmode mode = ios_base::out);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T>}}\\
-\tsreplace{}{}{+ \code{void open(T&& s, ios_base::openmode mode = ios_base::out);}}
+\tsreplace{}{}{+ \code{void open(\code{path-view-like} s, ios_base::openmode mode = ios_base::out);}}
 
 
 \tsrefp{ofstream.cons}{29.10.4.2}{5}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T>}}\\
-\tsreplace{}{}{+ \code{explicit basic_ofstream(T&& s,
+\tsreplace{}{}{+ \code{explicit basic_ofstream(\code{path-view-like} s,
 ios_base::openmode mode = ios_base::out);}}
 
-\tsreplace{}{}{+ \returns \code{basic_ofstream(path_view(forward<T&&>(s)).render_null_terminated().c_str(), mode);}}
+\tsreplace{}{}{+ \remarks Behaves as if the arguments to the constructor were \code{filesystem::path(s.view), mode}}
 
 \tsrefp{ofstream.members}{29.10.4.4}{3}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T>}}\\
-\tsreplace{}{}{+ \code{void open(T&& s, ios_base::openmode mode = ios_base::out);}}
+\tsreplace{}{}{+ \code{void open(\code{path-view-like} s, ios_base::openmode mode = ios_base::out);}}
 
-\tsreplace{}{}{+ \returns \code{open(path_view(forward<T&&>(s)).render_null_terminated().c_str(), mode);}}
+\tsreplace{}{}{+ \remarks Behaves as if \code{return open(filesystem::path(s.view), mode);}}
 
 
 \tsref{fstream}{29.10.5}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T>}}\\
-\tsreplace{}{}{+ \code{explicit basic_fstream(T&& s, ios_base::openmode mode = ios_base::in | ios_base::out);}}
+\tsreplace{}{}{+ \code{explicit basic_fstream(\emp{path-view-like} s, ios_base::openmode mode = ios_base::in | ios_base::out);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T>}}\\
-\tsreplace{}{}{+ \code{void open(T&& s, ios_base::openmode mode = ios_base::in | ios_base::out);}}
+\tsreplace{}{}{+ \code{void open(\emp{path-view-like} s, ios_base::openmode mode = ios_base::in | ios_base::out);}}
 
 
 \tsrefp{fstream.cons}{29.10.5.2}{3}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T>}}\\
-\tsreplace{}{}{+ \code{explicit basic_fstream(T&& s, ios_base::openmode mode = ios_base::in | ios_base::out);}}
+\tsreplace{}{}{+ \code{explicit basic_fstream(\emp{path-view-like} s, ios_base::openmode mode = ios_base::in | ios_base::out);}}
 
-\tsreplace{}{}{+ \returns \code{basic_fstream(path_view(forward<T&&>(s)).render_null_terminated().c_str(), mode);}}
+\tsreplace{}{}{+ \remarks Behaves as if the arguments to the constructor were \code{filesystem::path(s.view), mode}}
 
 
 \tsrefp{fstream.members}{29.10.5.3}{4}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T>}}\\
-\tsreplace{}{}{+ \code{void open(T&& s, ios_base::openmode mode = ios_base::in | ios_base::out);}}
+\tsreplace{}{}{+ \code{void open(\emp{path-view-like} s, ios_base::openmode mode = ios_base::in | ios_base::out);}}
 
-\tsreplace{}{}{+ \returns \code{open(path_view(forward<T&&>(s)).render_null_terminated().c_str(), mode);}}
+\tsreplace{}{}{+ \remarks Behaves as if \code{return open(filesystem::path(s.view), mode);}}
 
 
 \tsref{fs.filesystem.syn}{29.12.4}
@@ -377,313 +339,214 @@ ios_base::openmode mode = ios_base::out);}}
 \tsreplace{}{}{+ \code{size_t hash_value(path_view_component p);}}\\
 \tsreplace{}{}{+ \code{size_t hash_value(path_view p);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T>}}\\
-\tsreplace{}{}{+ \code{path absolute(T&& p);}}
+\tsreplace{}{}{+ \code{path absolute(\emp{path-view-like} p);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T>}}\\
-\tsreplace{}{}{+ \code{path absolute(T&& p, error_code& ec);}}
+\tsreplace{}{}{+ \code{path absolute(\emp{path-view-like} p, error_code& ec);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T>}}\\
-\tsreplace{}{}{+ \code{path canonical(T&& p);}}
+\tsreplace{}{}{+ \code{path canonical(\emp{path-view-like} p);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T>}}\\
-\tsreplace{}{}{+ \code{path canonical(T&& p, error_code& ec);}}
+\tsreplace{}{}{+ \code{path canonical(\emp{path-view-like} p, error_code& ec);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T, Cpp17NonLegacyPath U>}}\\
-\tsreplace{}{}{+ \code{void copy(T&& from, T&& to);}}
+\tsreplace{}{}{+ \code{void copy(\emp{path-view-like} from, \emp{path-view-like} to);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T, Cpp17NonLegacyPath U>}}\\
-\tsreplace{}{}{+ \code{void copy(T&& from, T&& to, error_code& ec);}}
+\tsreplace{}{}{+ \code{void copy(\emp{path-view-like} from, \emp{path-view-like} to, error_code& ec);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T, Cpp17NonLegacyPath U>}}\\
-\tsreplace{}{}{+ \code{void copy(T&& from, T&& to, copy_options options);}}
+\tsreplace{}{}{+ \code{void copy(\emp{path-view-like} from, \emp{path-view-like} to, copy_options options);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T, Cpp17NonLegacyPath U>}}\\
-\tsreplace{}{}{+ \code{void copy(T&& from, T&& to, copy_options options, error_code& ec);}}
+\tsreplace{}{}{+ \code{void copy(\emp{path-view-like} from, \emp{path-view-like} to, copy_options options, error_code& ec);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T, Cpp17NonLegacyPath U>}}\\
-\tsreplace{}{}{+ \code{bool copy_file(T&& from, T&& to);}}
+\tsreplace{}{}{+ \code{bool copy_file(\emp{path-view-like} from, \emp{path-view-like} to);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T, Cpp17NonLegacyPath U>}}\\
-\tsreplace{}{}{+ \code{bool copy_file(T&& from, T&& to, error_code& ec);}}
+\tsreplace{}{}{+ \code{bool copy_file(\emp{path-view-like} from, \emp{path-view-like} to, error_code& ec);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T, Cpp17NonLegacyPath U>}}\\
-\tsreplace{}{}{+ \code{bool copy_file(T&& from, T&& to, copy_options options);}}
+\tsreplace{}{}{+ \code{bool copy_file(\emp{path-view-like} from, \emp{path-view-like} to, copy_options options);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T, Cpp17NonLegacyPath U>}}\\
-\tsreplace{}{}{+ \code{bool copy_file(T&& from, T&& to, copy_options options, error_code& ec);}}
+\tsreplace{}{}{+ \code{bool copy_file(\emp{path-view-like} from, \emp{path-view-like} to, copy_options options, error_code& ec);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T, Cpp17NonLegacyPath U>}}\\
-\tsreplace{}{}{+ \code{void copy_symlink(T&& existing\_symlink, T&& new\_symlink);}}
+\tsreplace{}{}{+ \code{void copy_symlink(\emp{path-view-like} existing\_symlink, \emp{path-view-like} new\_symlink);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T, Cpp17NonLegacyPath U>}}\\
-\tsreplace{}{}{+ \code{void copy_symlink(T&& existing\_symlink, T&& new\_symlink, error_code& ec);}}
+\tsreplace{}{}{+ \code{void copy_symlink(\emp{path-view-like} existing\_symlink, \emp{path-view-like} new\_symlink, error_code& ec);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T>}}\\
-\tsreplace{}{}{+ \code{bool create_directories(T&& p);}}
+\tsreplace{}{}{+ \code{bool create_directories(\emp{path-view-like} p);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T>}}\\
-\tsreplace{}{}{+ \code{bool create_directories(T&& p, error_code& ec);}}
+\tsreplace{}{}{+ \code{bool create_directories(\emp{path-view-like} p, error_code& ec);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T>}}\\
-\tsreplace{}{}{+ \code{bool create_directory(T&& p);}}
+\tsreplace{}{}{+ \code{bool create_directory(\emp{path-view-like} p);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T>}}\\
-\tsreplace{}{}{+ \code{bool create_directory(T&& p, error_code& ec);}}
+\tsreplace{}{}{+ \code{bool create_directory(\emp{path-view-like} p, error_code& ec);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T, Cpp17NonLegacyPath U>}}\\
-\tsreplace{}{}{+ \code{bool create_directory(T&& p, U&& attributes);}}
+\tsreplace{}{}{+ \code{bool create_directory(\emp{path-view-like} p, \emp{path-view-like} attributes);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T, Cpp17NonLegacyPath U>}}\\
-\tsreplace{}{}{+ \code{bool create_directory(T&& p, U&& attributes, error_code& ec);}}
+\tsreplace{}{}{+ \code{bool create_directory(\emp{path-view-like} p, \emp{path-view-like} attributes, error_code& ec);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T, Cpp17NonLegacyPath U>}}\\
-\tsreplace{}{}{+ \code{void create_directory_symlink(T&& to, U&& new_symlink);}}
+\tsreplace{}{}{+ \code{void create_directory_symlink(\emp{path-view-like} to, \emp{path-view-like} new_symlink);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T, Cpp17NonLegacyPath U>}}\\
-\tsreplace{}{}{+ \code{void create_directory_symlink(T&& to, U&& new_symlink, error_code& ec);}}
+\tsreplace{}{}{+ \code{void create_directory_symlink(\emp{path-view-like} to, \emp{path-view-like} new_symlink, error_code& ec);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T, Cpp17NonLegacyPath U>}}\\
-\tsreplace{}{}{+ \code{void create_hard_link(T&& to, U&& new_hard_link);}}
+\tsreplace{}{}{+ \code{void create_hard_link(\emp{path-view-like} to, \emp{path-view-like} new_hard_link);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T, Cpp17NonLegacyPath U>}}\\
-\tsreplace{}{}{+ \code{void create_hard_link(T&& to, U&& new_hard_link, error_code& ec);}}
+\tsreplace{}{}{+ \code{void create_hard_link(\emp{path-view-like} to, \emp{path-view-like} new_hard_link, error_code& ec);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T, Cpp17NonLegacyPath U>}}\\
-\tsreplace{}{}{+ \code{void create_symlink(T&& to, U&& new_symlink);}}
+\tsreplace{}{}{+ \code{void create_symlink(\emp{path-view-like} to, \emp{path-view-like} new_symlink);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T, Cpp17NonLegacyPath U>}}\\
-\tsreplace{}{}{+ \code{void create_symlink(T&& to, U&& new_symlink, error_code& ec);}}
+\tsreplace{}{}{+ \code{void create_symlink(\emp{path-view-like} to, \emp{path-view-like} new_symlink, error_code& ec);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T>}}\\
-\tsreplace{}{}{+ \code{void current_path(T&& p);}}
+\tsreplace{}{}{+ \code{void current_path(\emp{path-view-like} p);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T>}}\\
-\tsreplace{}{}{+ \code{void current_path(T&& p, error_code& ec);}}
+\tsreplace{}{}{+ \code{void current_path(\emp{path-view-like} p, error_code& ec);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T, Cpp17NonLegacyPath U>}}\\
-\tsreplace{}{}{+ \code{bool equivalent(T&& p1, U&& p2);}}
+\tsreplace{}{}{+ \code{bool equivalent(\emp{path-view-like} p1, \emp{path-view-like} p2);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T, Cpp17NonLegacyPath U>}}\\
-\tsreplace{}{}{+ \code{bool equivalent(T&& p1, U&& p2, error_code& ec);}}
+\tsreplace{}{}{+ \code{bool equivalent(\emp{path-view-like} p1, \emp{path-view-like} p2, error_code& ec);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T>}}\\
-\tsreplace{}{}{+ \code{bool exists(T&& p);}}
+\tsreplace{}{}{+ \code{bool exists(\emp{path-view-like} p);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T>}}\\
-\tsreplace{}{}{+ \code{bool exists(T&& p, error_code& ec);}}
+\tsreplace{}{}{+ \code{bool exists(\emp{path-view-like} p, error_code& ec);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T>}}\\
-\tsreplace{}{}{+ \code{uintmax_t file_size(T&& p);}}
+\tsreplace{}{}{+ \code{uintmax_t file_size(\emp{path-view-like} p);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T>}}\\
-\tsreplace{}{}{+ \code{uintmax_t file_size(T&& p, error_code& ec);}}
+\tsreplace{}{}{+ \code{uintmax_t file_size(\emp{path-view-like} p, error_code& ec);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T>}}\\
-\tsreplace{}{}{+ \code{uintmax_t hard_link_count(T&& p);}}
+\tsreplace{}{}{+ \code{uintmax_t hard_link_count(\emp{path-view-like} p);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T>}}\\
-\tsreplace{}{}{+ \code{uintmax_t hard_link_count(T&& p, error_code& ec);}}
+\tsreplace{}{}{+ \code{uintmax_t hard_link_count(\emp{path-view-like} p, error_code& ec);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T>}}\\
-\tsreplace{}{}{+ \code{bool is_block_file(T&& p);}}
+\tsreplace{}{}{+ \code{bool is_block_file(\emp{path-view-like} p);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T>}}\\
-\tsreplace{}{}{+ \code{bool is_block_file(T&& p, error_code& ec);}}
+\tsreplace{}{}{+ \code{bool is_block_file(\emp{path-view-like} p, error_code& ec);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T>}}\\
-\tsreplace{}{}{+ \code{bool is_character_file(T&& p);}}
+\tsreplace{}{}{+ \code{bool is_character_file(\emp{path-view-like} p);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T>}}\\
-\tsreplace{}{}{+ \code{bool is_character_file(T&& p, error_code& ec);}}
+\tsreplace{}{}{+ \code{bool is_character_file(\emp{path-view-like} p, error_code& ec);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T>}}\\
-\tsreplace{}{}{+ \code{bool is_directory(T&& p);}}
+\tsreplace{}{}{+ \code{bool is_directory(\emp{path-view-like} p);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T>}}\\
-\tsreplace{}{}{+ \code{bool is_directory(T&& p, error_code& ec);}}
+\tsreplace{}{}{+ \code{bool is_directory(\emp{path-view-like} p, error_code& ec);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T>}}\\
-\tsreplace{}{}{+ \code{bool is_empty(T&& p);}}
+\tsreplace{}{}{+ \code{bool is_empty(\emp{path-view-like} p);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T>}}\\
-\tsreplace{}{}{+ \code{bool is_empty(T&& p, error_code& ec);}}
+\tsreplace{}{}{+ \code{bool is_empty(\emp{path-view-like} p, error_code& ec);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T>}}\\
-\tsreplace{}{}{+ \code{bool is_fifo(T&& p);}}
+\tsreplace{}{}{+ \code{bool is_fifo(\emp{path-view-like} p);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T>}}\\
-\tsreplace{}{}{+ \code{bool is_fifo(T&& p, error_code& ec);}}
+\tsreplace{}{}{+ \code{bool is_fifo(\emp{path-view-like} p, error_code& ec);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T>}}\\
-\tsreplace{}{}{+ \code{bool is_other(T&& p);}}
+\tsreplace{}{}{+ \code{bool is_other(\emp{path-view-like} p);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T>}}\\
-\tsreplace{}{}{+ \code{bool is_other(T&& p, error_code& ec);}}
+\tsreplace{}{}{+ \code{bool is_other(\emp{path-view-like} p, error_code& ec);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T>}}\\
-\tsreplace{}{}{+ \code{bool is_regular_file(T&& p);}}
+\tsreplace{}{}{+ \code{bool is_regular_file(\emp{path-view-like} p);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T>}}\\
-\tsreplace{}{}{+ \code{bool is_regular_file(T&& p, error_code& ec);}}
+\tsreplace{}{}{+ \code{bool is_regular_file(\emp{path-view-like} p, error_code& ec);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T>}}\\
-\tsreplace{}{}{+ \code{bool is_socket(T&& p);}}
+\tsreplace{}{}{+ \code{bool is_socket(\emp{path-view-like} p);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T>}}\\
-\tsreplace{}{}{+ \code{bool is_socket(T&& p, error_code& ec);}}
+\tsreplace{}{}{+ \code{bool is_socket(\emp{path-view-like} p, error_code& ec);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T>}}\\
-\tsreplace{}{}{+ \code{bool is_symlink(T&& p);}}
+\tsreplace{}{}{+ \code{bool is_symlink(\emp{path-view-like} p);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T>}}\\
-\tsreplace{}{}{+ \code{bool is_symlink(T&& p, error_code& ec);}}
+\tsreplace{}{}{+ \code{bool is_symlink(\emp{path-view-like} p, error_code& ec);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T>}}\\
-\tsreplace{}{}{+ \code{file_time_type last_write_time(T&& p);}}
+\tsreplace{}{}{+ \code{file_time_type last_write_time(\emp{path-view-like} p);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T>}}\\
-\tsreplace{}{}{+ \code{file_time_type last_write_time(T&& p, error_code& ec);}}
+\tsreplace{}{}{+ \code{file_time_type last_write_time(\emp{path-view-like} p, error_code& ec);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T>}}\\
-\tsreplace{}{}{+ \code{void last_write_time(T&& p, file_time_type new_time);}}
+\tsreplace{}{}{+ \code{void last_write_time(\emp{path-view-like} p, file_time_type new_time);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T>}}\\
-\tsreplace{}{}{+ \code{void last_write_time(T&& p, file_time_type new_time, error_code& ec);}}
+\tsreplace{}{}{+ \code{void last_write_time(\emp{path-view-like} p, file_time_type new_time, error_code& ec);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T>}}\\
-\tsreplace{}{}{+ \code{void permissions(T&& p, perms prms, perm_options opts=perm_options::replace);}}
+\tsreplace{}{}{+ \code{void permissions(\emp{path-view-like} p, perms prms, perm_options opts=perm_options::replace);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T>}}\\
-\tsreplace{}{}{+ \code{void permissions(T&& p, perms prms, error_code& ec);}}
+\tsreplace{}{}{+ \code{void permissions(\emp{path-view-like} p, perms prms, error_code& ec);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T>}}\\
-\tsreplace{}{}{+ \code{void permissions(T&& p, perms prms, perm_options opts,  error_code& ec);}}
+\tsreplace{}{}{+ \code{void permissions(\emp{path-view-like} p, perms prms, perm_options opts,  error_code& ec);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T>}}\\
-\tsreplace{}{}{+ \code{path proximate(T&& p, error_code& ec);}}
+\tsreplace{}{}{+ \code{path proximate(\emp{path-view-like} p, error_code& ec);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T, Cpp17NonLegacyPath U>}}\\
-\tsreplace{}{}{+ \code{path proximate(T&& p, U&& base = current_path());}}
+\tsreplace{}{}{+ \code{path proximate(\emp{path-view-like} p, \emp{path-view-like} base = current_path());}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T, Cpp17NonLegacyPath U>}}\\
-\tsreplace{}{}{+ \code{path proximate(T&& p, U&& base, error_code& ec);}}
+\tsreplace{}{}{+ \code{path proximate(\emp{path-view-like} p, \emp{path-view-like} base, error_code& ec);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T>}}\\
-\tsreplace{}{}{+ \code{path read_symlink(T&& p);}}
+\tsreplace{}{}{+ \code{path read_symlink(\emp{path-view-like} p);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T>}}\\
-\tsreplace{}{}{+ \code{path read_symlink(T&& p, error_code& ec);}}
+\tsreplace{}{}{+ \code{path read_symlink(\emp{path-view-like} p, error_code& ec);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T>}}\\
-\tsreplace{}{}{+ \code{path relative(T&& p, error_code& ec);}}
+\tsreplace{}{}{+ \code{path relative(\emp{path-view-like} p, error_code& ec);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T, Cpp17NonLegacyPath U>}}\\
-\tsreplace{}{}{+ \code{path relative(T&& p, U&& base = current_path());}}
+\tsreplace{}{}{+ \code{path relative(\emp{path-view-like} p, \emp{path-view-like} base = current_path());}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T, Cpp17NonLegacyPath U>}}\\
-\tsreplace{}{}{+ \code{path relative(T&& p, U&& base, error_code& ec);}}
+\tsreplace{}{}{+ \code{path relative(\emp{path-view-like} p, \emp{path-view-like} base, error_code& ec);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T>}}\\
-\tsreplace{}{}{+ \code{bool remove(T&& p);}}
+\tsreplace{}{}{+ \code{bool remove(\emp{path-view-like} p);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T>}}\\
-\tsreplace{}{}{+ \code{bool remove(T&& p, error_code& ec);}}
+\tsreplace{}{}{+ \code{bool remove(\emp{path-view-like} p, error_code& ec);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T>}}\\
-\tsreplace{}{}{+ \code{uintmax_t remove_all(T&& p);}}
+\tsreplace{}{}{+ \code{uintmax_t remove_all(\emp{path-view-like} p);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T>}}\\
-\tsreplace{}{}{+ \code{uintmax_t remove_all(T&& p, error_code& ec);}}
+\tsreplace{}{}{+ \code{uintmax_t remove_all(\emp{path-view-like} p, error_code& ec);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T, Cpp17NonLegacyPath U>}}\\
-\tsreplace{}{}{+ \code{void rename(T&& from, U&& to);}}
+\tsreplace{}{}{+ \code{void rename(\emp{path-view-like} from, \emp{path-view-like} to);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T, Cpp17NonLegacyPath U>}}\\
-\tsreplace{}{}{+ \code{void rename(T&& from, U&& to, error_code& ec);}}
+\tsreplace{}{}{+ \code{void rename(\emp{path-view-like} from, \emp{path-view-like} to, error_code& ec);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T>}}\\
-\tsreplace{}{}{+ \code{void resize_file(T&& p, uintmax_t size);}}
+\tsreplace{}{}{+ \code{void resize_file(\emp{path-view-like} p, uintmax_t size);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T>}}\\
-\tsreplace{}{}{+ \code{void resize_file(T&& p, uintmax_t size, error_code& ec);}}
+\tsreplace{}{}{+ \code{void resize_file(\emp{path-view-like} p, uintmax_t size, error_code& ec);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T>}}\\
-\tsreplace{}{}{+ \code{space_info space(T&& p);}}
+\tsreplace{}{}{+ \code{space_info space(\emp{path-view-like} p);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T>}}\\
-\tsreplace{}{}{+ \code{space_info space(T&& p, error_code& ec);}}
+\tsreplace{}{}{+ \code{space_info space(\emp{path-view-like} p, error_code& ec);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T>}}\\
-\tsreplace{}{}{+ \code{file_status status(T&& p);}}
+\tsreplace{}{}{+ \code{file_status status(\emp{path-view-like} p);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T>}}\\
-\tsreplace{}{}{+ \code{file_status status(T&& p, error_code& ec);}}
+\tsreplace{}{}{+ \code{file_status status(\emp{path-view-like} p, error_code& ec);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T>}}\\
-\tsreplace{}{}{+ \code{file_status symlink_status(T&& p);}}
+\tsreplace{}{}{+ \code{file_status symlink_status(\emp{path-view-like} p);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T>}}\\
-\tsreplace{}{}{+ \code{file_status symlink_status(T&& p, error_code& ec);}}
+\tsreplace{}{}{+ \code{file_status symlink_status(\emp{path-view-like} p, error_code& ec);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T>}}\\
-\tsreplace{}{}{+ \code{path weakly_canonical(T&& p);}}
+\tsreplace{}{}{+ \code{path weakly_canonical(\emp{path-view-like} p);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17NonLegacyPath T>}}\\
-\tsreplace{}{}{+ \code{path weakly_canonical(T&& p, error_code& ec);}}
+\tsreplace{}{}{+ \code{path weakly_canonical(\emp{path-view-like} p, error_code& ec);}}
 
 
 \tsrefp{fs.class.path}{29.12.6}{6}
 
-\tsreplace{}{}{+ \code{template<Cpp17PathView T>}}\\
-\tsreplace{}{}{+ \code{explicit path(T&& p);}}
+\tsreplace{}{}{+ \code{explicit path(\emp{path-view-like} p);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17PathView T>}}\\
-\tsreplace{}{}{+ \code{path(T&& p, const locale& loc);}}
+\tsreplace{}{}{+ \code{path(\emp{path-view-like} p, const locale& loc);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17PathView T>}}\\
-\tsreplace{}{}{+ \code{path& operator=(T&& p);}}
+\tsreplace{}{}{+ \code{path& operator=(\emp{path-view-like} p);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17PathView T>}}\\
-\tsreplace{}{}{+ \code{path& assign(T&& p);}}
+\tsreplace{}{}{+ \code{path& assign(\emp{path-view-like} p);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17PathView T>}}\\
-\tsreplace{}{}{+ \code{path& operator/=(T&& p);}}
+\tsreplace{}{}{+ \code{path& operator/=(\emp{path-view-like} p);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17PathView T>}}\\
-\tsreplace{}{}{+ \code{path& operator+=(T&& p);}}
+\tsreplace{}{}{+ \code{path& operator+=(\emp{path-view-like} p);}}
 
 \tsreplace{}{}{+ \code{format formatting() const noexcept;}}
 
 \tsreplace{}{}{+ \note{If the \code{path} implementation does not store the formatting with which it was created (all of libstdc++, libc++ and MSVC's implementations currently ignore the parameter entirely), this function ought to return \code{auto_format}.}}
 
-\tsreplace{}{}{+ \code{template<Cpp17PathView T>}}\\
-\tsreplace{}{}{+ \code{path& replace_filename(T&& p);}}
+\tsreplace{}{}{+ \code{path& replace_filename(\emp{path-view-like} p);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17PathView T>}}\\
-\tsreplace{}{}{+ \code{path& replace_extension(T&& p);}}
+\tsreplace{}{}{+ \code{path& replace_extension(\emp{path-view-like} p);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17PathView T>}}\\
-\tsreplace{}{}{+ \code{friend path operator/ (const path\& lhs, T&& rhs);}}
+\tsreplace{}{}{+ \code{friend path operator/ (const path\& lhs, \emp{path-view-like} rhs);}}
 
 \tsreplace{}{}{+ \code{friend path operator/ (path&& lhs, path&& rhs);}}
 
 \note{The above rvalue ref path \code{operator/} overload isn't strictly needed for path view, but helps ameliorate the \code{"my" / "path" / "literal"} pattern you see in code which is currently extremely inefficient at runtime.}
 
-\tsreplace{}{}{+ \code{template<Cpp17PathView T>}}\\
-\tsreplace{}{}{+ \code{friend path operator/ (path&& lhs, T&& rhs);}}
+\tsreplace{}{}{+ \code{friend path operator/ (path&& lhs, \emp{path-view-like} rhs);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17PathView T, Cpp17PathView U>}}\\
-\tsreplace{}{}{+ \code{friend path operator/ (T&& lhs, U&& rhs);}}
+\tsreplace{}{}{+ \code{friend path operator/ (\emp{path-view-like} lhs, \emp{path-view-like} rhs);}}
 
-\tsreplace{}{}{+ \code{template<Cpp17PathView T>}}\\
-\tsreplace{}{}{+ \code{int compare(T&& p) const;}}
+\tsreplace{}{}{+ \code{int compare(\emp{path-view-like} p) const;}}
 
-\tsreplace{}{}{+ \code{template<Cpp17PathView T>}}\\
-\tsreplace{}{}{+ \code{path lexically_relative(T&& p) const;}}
+\tsreplace{}{}{+ \code{path lexically_relative(\emp{path-view-like} p) const;}}
 
-\tsreplace{}{}{+ \code{template<Cpp17PathView T>}}\\
-\tsreplace{}{}{+ \code{path lexically_proximate(T&& p) const;}}
+\tsreplace{}{}{+ \code{path lexically_proximate(\emp{path-view-like} p) const;}}
 
 \code{const string_type& native() const} \tsreplace{}{}{\&}\code{ noexcept;}
 
@@ -694,8 +557,7 @@ ios_base::openmode mode = ios_base::out);}}
 
 \tsref{fs.path.construct}{29.12.6.5.1}
 
-\tsreplace{}{}{+ \code{template<Cpp17PathView T>}}\\
-\tsreplace{}{}{+ \code{explicit path(T&& p);}}
+\tsreplace{}{}{+ \code{explicit path(\emp{path-view-like} p);}}
 
 \tsreplace{}{}{+ \effects Constructs an object of class \code{path} by an equivalent call to:}
 \begin{lstlisting}[language=cpp]
@@ -708,11 +570,10 @@ visit([&p](auto sv) -> path {
   {
     return path(sv, p.formatting());
   }
-}, p);
+}, p.view);
 \end{lstlisting}
 
-\tsreplace{}{}{+ \code{template<Cpp17PathView T>}}\\
-\tsreplace{}{}{+ \code{path(T&& p, const locale& loc);}}
+\tsreplace{}{}{+ \code{path(\emp{path-view-like} p, const locale& loc);}}
 
 \tsreplace{}{}{+ \effects Constructs an object of class \code{path} by an equivalent call to:}
 \begin{lstlisting}[language=cpp]
@@ -725,16 +586,27 @@ visit([&p, &loc](auto sv) -> path {
   {
     return path(sv, loc, p.formatting());
   }
-}, p);
+}, p.view);
 \end{lstlisting}
 
 \tsreplace{}{}{+ \code{format formatting() const noexcept;}}
 
 \tsreplace{}{}{+ \returns The appropriate path separator format interpretation for the current path's contents.}
 
-\note{For brevity, I have not described the \code{Cpp17PathView} added overloads as they are all equivalent to calling the path overload with a path constructed from the path view. Obviously implementations can be more efficient here by avoiding a dynamic memory allocation in a temporarily constructed path.}
+\note{For brevity, I have not described the \code{\emp{path-view-like}} added overloads as they are all equivalent to calling the path overload with a path constructed from the path view. Obviously implementations can be more efficient here by avoiding a dynamic memory allocation in a temporarily constructed path.}
 
 \color{darkgreen}
+
+\subsection*{Class \code{\emp{path-view-like}} [fs.path\_view\_like]}
+
+The exposition-only type \code{\emp{path-view-like}} is implicitly constructible from any type \code{T} for which:
+
+\begin{itemize}
+\item \code{std::is_convertible<T, path_view>} is \code{true}, and
+\item \code{std::is_convertible<T, path>} is \code{false}
+\end{itemize}
+
+and which has a single exposition-only member \code{\emp{view}} of type \code{path_view} which is initialized from the object of type \code{T}.
 
 \subsection*{Class \code{path_view_component} [fs.path\_view\_component]}
 
