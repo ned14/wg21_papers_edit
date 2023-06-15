@@ -4,7 +4,7 @@
 
 [x] Rename to render_unterminated
 
-[ ] Remove render<enum>
+[x] Remove render<enum>
 
 [X] Remove all locale based overloads
 

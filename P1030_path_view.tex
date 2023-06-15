@@ -208,6 +208,7 @@ The WG21 tracker for this paper can be found at \url{https://github.com/cplusplu
     \item Fix incorrect ostream formatter as reported by Victor (thanks!). 
     \item Renamed render_zero_terminated to render_null_terminated
     \item Renamed render_not_zero_terminated to render_unterminated
+    \item Removed render
     \end{itemize}
 
     \item R4 => R5:
@@ -811,19 +812,6 @@ namespace std::filesystem {
     class rendered_path;
 
     // Conversion convenience
-    template <enum path_view_component::zero_termination ZeroTermination,
-              class T = typename path::value_type,
-              class Allocator = default_rendered_path_allocator<T>,
-              size_type InternalBufferSize = default_internal_buffer_size>
-    constexpr rendered_path<ZeroTermination, T, Allocator, _internal_buffer_size>
-    render(path_view_component v, const locale& loc, Allocator allocate = Allocator());
-    template <enum path_view_component::zero_termination ZeroTermination,
-              class T = typename path::value_type,
-              class Allocator = default_rendered_path_allocator<T>,
-              size_type InternalBufferSize = default_internal_buffer_size>
-    constexpr rendered_path<ZeroTermination, T, Allocator, _internal_buffer_size>
-    render(path_view_component v, Allocator allocate = Allocator());
-
     template <class T = typename path::value_type,
               class Allocator = default_rendered_path_allocator<T>,
               size_type InternalBufferSize = default_internal_buffer_size>
