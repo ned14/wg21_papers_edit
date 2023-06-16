@@ -515,8 +515,8 @@ ios_base::openmode mode = ios_base::in);}}
 
 \tsreplace{}{}{+ \code{struct path-view-like \{ // exposition-only}}\\
 \tsreplace{}{}{+ \code{  path_view view;}}\\
-\tsreplace{}{}{+ \code{\}; }}\\
-\tsreplace{}{}{+ \code{path \emph{path-from-binary}(span<const byte> data); // exposition-only}}\\
+\tsreplace{}{}{+ \code{\};}}\\
+\tsreplace{}{}{+ \code{path path-from-binary(span<const byte> data); // exposition-only}}\\
 
 \tsreplace{}{  \code{void swap(path& lhs, path& rhs);}}{}\\
 \tsreplace{}{  \code{size_t hash_value(path p);}}{}\\
@@ -777,13 +777,13 @@ namespace std {
 + The exposition-only type \code{path-view-like} is implicitly constructible from any type \code{T} for which:
 
 \begin{itemize}
-+ \item \code{std::is_convertible<T, path_view>} is \code{true}, and
-+ \item \code{std::is_convertible<T, path>} is \code{false}
+\item + \code{std::is_convertible_v<T, path_view>} is \code{true}, and
+\item + \code{std::is_convertible_v<T, path>} is \code{false}
 \end{itemize}
 
-+ and which has a single exposition-only member \code{\emph{view}} of type \code{path_view} which is initialized from the object of type \code{T}.
++ and which has a single exposition-only member \texttt{\emph{view}} of type \code{path_view} which is initialized from the object of type \code{T}.
 
-+ The exposition-only function \code{\emph{path-from-binary}} returns a \code{path} constructed from a \code{span<const byte>}.\\
++ The exposition-only function \texttt{\emph{path-from-binary}} returns a \code{path} constructed from a \code{span<const byte>}.\\
 + The semantics of this conversion are implementation-defined.
 
 + \note{The semantics of a binary-to-path conversion are inherently unportable, and may not be possible on all platforms or filesystems.
@@ -889,8 +889,11 @@ public:
 
   // [fs.path.native.obs], native format observers
 \end{lstlisting}
-\tsreplace{- const string_type& native() const noexcept;}{}{+ \code{const string_type& native() const& noexcept;}}\\
-\tsreplace{}{}{+ \code{string_type&& native() && noexcept;}}\\
+
+\tsreplace{}{\code{const string_type& native() const}}{+\&}\code{noexcept;}
+
+\tsreplace{}{}{+ \code{string_type&& native() && noexcept;}}
+
 \begin{lstlisting}[language=cpp]
   const value_type*  c_str() const noexcept;
   operator string_type() const;
@@ -995,7 +998,7 @@ Their semantics should be relatively obvious, except for \code{format formatting
 visit([&p](auto sv) -> path {
   if constexpr(same_as<remove_cvref_t<decltype(sv)>, span<const byte>>)
   {
-    return \emph{path-from-binary}(sv);
+    return path-from-binary(sv);
   }
   else
   {
