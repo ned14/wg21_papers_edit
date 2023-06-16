@@ -38,6 +38,6 @@ named in the "see later normative wording" comments.
 
 [ ] Mix and match `path` and `path-view-like` arguments for `equivalent` and others
 
-[ ] `noexcept` for `error_code` overloads
+[X] `noexcept` for `error_code` overloads
 
-[ ] Add `std::hash` for `path_view_component`
+[X] Add `std::hash` for `path_view_component`
